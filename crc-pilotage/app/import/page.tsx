@@ -31,10 +31,31 @@ type Extraction = {
 export default function ImportPage() {
   const [rawText, setRawText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExtracting(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/extract-file", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Échec de l'extraction du fichier.");
+      setRawText(data.text);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setExtracting(false);
+      e.target.value = ""; // permet de réuploader le même fichier si besoin
+    }
+  }
 
   async function handleAnalyze() {
     setLoading(true);
@@ -160,9 +181,22 @@ export default function ImportPage() {
 
       {!extraction && (
         <>
+          <div className="flex items-center gap-3">
+            <label className="text-sm border border-line rounded-md px-3 py-2 bg-white cursor-pointer hover:bg-line/20 transition-colors">
+              {extracting ? "Extraction en cours..." : "Importer un fichier (.txt, .docx, .pdf)"}
+              <input
+                type="file"
+                accept=".txt,.docx,.pdf"
+                onChange={handleFileUpload}
+                disabled={extracting}
+                className="hidden"
+              />
+            </label>
+            <span className="text-xs text-ink/40">ou colle le texte ci-dessous</span>
+          </div>
           <textarea
             className="w-full h-72 border border-line rounded-md p-4 text-sm font-mono bg-white"
-            placeholder="Colle ici le texte du compte-rendu..."
+            placeholder="Colle ici le texte du compte-rendu, ou importe un fichier ci-dessus..."
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
           />
