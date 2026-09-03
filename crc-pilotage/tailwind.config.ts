@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  content: ["./app/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   // Ces classes sont composées dynamiquement (ex: `text-${priorite}`) donc
   // Tailwind ne les détecte pas par analyse statique — sans ce safelist,
   // elles seraient silencieusement absentes du CSS généré.
