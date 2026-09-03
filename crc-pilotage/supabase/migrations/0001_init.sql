@@ -66,6 +66,7 @@ create table if not exists risks (
   created_at timestamptz not null default now()
 );
 
+
 create index if not exists idx_tasks_project on tasks(project_id);
 create index if not exists idx_tasks_status on tasks(status);
 create index if not exists idx_risks_project on risks(project_id);

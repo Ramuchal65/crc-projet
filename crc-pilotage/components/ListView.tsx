@@ -81,14 +81,22 @@ export default function ListView({
             title={showProjectBadge ? `Projet : ${projectById.get(task.project_id)?.name ?? "?"}` : undefined}
             style={
               showProjectBadge
-                ? { backgroundColor: withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "10") }
+                ? {
+                    backgroundColor: withAlpha(
+                      projectById.get(task.project_id)?.color ?? "#3E6FA8",
+                      "1A"
+                    ),
+                    borderLeft: `3px solid ${projectById.get(task.project_id)?.color ?? "#3E6FA8"}`,
+                  }
                 : undefined
             }
-            className="grid grid-cols-[1fr_170px_110px_120px_110px] gap-2 px-4 py-2.5 items-center border-b border-line last:border-0 hover:bg-paper/60 text-sm transition-colors"
+            className="grid grid-cols-[1fr_170px_110px_120px_110px] gap-2 pr-4 py-2.5 items-center border-b border-line last:border-0 hover:brightness-95 text-sm transition-all"
           >
             <button
               onClick={() => onSelect(task.id)}
-              className="text-left truncate hover:underline underline-offset-4 flex items-center gap-1.5"
+              className={`text-left truncate hover:underline underline-offset-4 flex items-center gap-1.5 ${
+                showProjectBadge ? "pl-3" : "pl-4"
+              }`}
             >
               {blockedTaskIds.has(task.id) && (
                 <Lock size={11} className="text-critique shrink-0" />
