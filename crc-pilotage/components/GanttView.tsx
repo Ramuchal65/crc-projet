@@ -116,6 +116,20 @@ export default function GanttView({
     return result;
   }, [rangeStart, rangeEnd]);
 
+  const days = useMemo(() => {
+    const result: { label: string; x: number; weekend: boolean }[] = [];
+    for (let i = 0; i < totalDays; i++) {
+      const d = addDays(rangeStart, i);
+      const dow = d.getUTCDay(); // 0 = dimanche, 6 = samedi
+      result.push({
+        label: String(d.getUTCDate()),
+        x: i * DAY_WIDTH,
+        weekend: dow === 0 || dow === 6,
+      });
+    }
+    return result;
+  }, [rangeStart, totalDays]);
+
   const todayX = useMemo(() => {
     const t = new Date();
     const today = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()));
@@ -209,7 +223,7 @@ export default function GanttView({
             <span key={p.id} className="flex items-center gap-1.5">
               <span
                 className="w-2.5 h-2.5 rounded-sm"
-                style={{ backgroundColor: projectColor(p.id) }}
+                style={{ backgroundColor: p.color }}
               />
               {p.name}
             </span>
@@ -220,7 +234,7 @@ export default function GanttView({
         <div className="flex overflow-x-auto">
           {/* Colonne des libellés, collée à gauche */}
           <div className="shrink-0 sticky left-0 z-20 bg-white border-r border-line" style={{ width: LABEL_WIDTH }}>
-            <div className="h-9 border-b border-line" />
+            <div className="h-[52px] border-b border-line" />
             {bars.map(({ task, rowIndex }) => (
               <div
                 key={task.id}
@@ -232,7 +246,7 @@ export default function GanttView({
                     hoverId === task.id
                       ? undefined
                       : showProjectBadge
-                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "0C")
+                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "1A")
                       : undefined,
                 }}
                 className={`flex items-center gap-1.5 px-3 text-xs truncate border-b border-line/60 transition-colors ${
@@ -255,19 +269,45 @@ export default function GanttView({
           {/* Zone chronologique */}
           <div className="relative" style={{ width: timelineWidth }}>
             {/* en-tête des mois */}
-            <div className="h-9 border-b border-line relative">
-              {months.map((m, i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full flex items-center px-2 text-[11px] text-ink/50 border-l border-line/60"
-                  style={{ left: m.x, width: m.width }}
-                >
-                  {m.label}
-                </div>
-              ))}
+            <div className="h-[52px] border-b border-line relative">
+              <div className="h-6 relative border-b border-line/60">
+                {months.map((m, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-0 h-full flex items-center px-2 text-[11px] text-ink/50 border-l border-line/60"
+                    style={{ left: m.x, width: m.width }}
+                  >
+                    {m.label}
+                  </div>
+                ))}
+              </div>
+              <div className="h-[26px] relative">
+                {days.map((d, i) => (
+                  <div
+                    key={i}
+                    className={`absolute top-0 h-full flex items-center justify-center text-[10px] border-l border-line/30 ${
+                      d.weekend ? "text-ink/25 bg-line/20" : "text-ink/45"
+                    }`}
+                    style={{ left: d.x, width: DAY_WIDTH }}
+                  >
+                    {d.label}
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="relative" style={{ height: bars.length * ROW_HEIGHT }}>
+              {/* repères verticaux par jour (week-ends estompés) */}
+              {days.map((d, i) => (
+                <div
+                  key={i}
+                  className={`absolute top-0 bottom-0 border-l ${
+                    d.weekend ? "border-line/40 bg-line/10" : "border-line/20"
+                  }`}
+                  style={{ left: d.x, width: DAY_WIDTH }}
+                />
+              ))}
+
               {/* lignes de fond par ligne */}
               {bars.map(({ task, rowIndex }) => (
                 <div
@@ -277,7 +317,7 @@ export default function GanttView({
                     top: rowIndex * ROW_HEIGHT,
                     height: ROW_HEIGHT,
                     backgroundColor: showProjectBadge
-                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "0C")
+                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "1A")
                       : undefined,
                   }}
                 />
