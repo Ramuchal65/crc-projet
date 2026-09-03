@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2, Link2, ChevronRight, ListChecks, Plus } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, Subtask } from "@/lib/types";
+import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare } from "lucide-react";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
 
 export default function TaskDrawer({
   task,
@@ -30,6 +31,11 @@ export default function TaskDrawer({
   const [mounted, setMounted] = useState(false);
   const [depPick, setDepPick] = useState("");
   const [newSubtask, setNewSubtask] = useState("");
+  const [comments, setComments] = useState<TaskComment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(true);
+  const [newComment, setNewComment] = useState("");
+  const [authorName, setAuthorName] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
 
   useEffect(() => {
     setTitle(task.title);
@@ -50,6 +56,51 @@ export default function TaskDrawer({
       window.removeEventListener("keydown", handleEsc);
     };
   }, []);
+
+  useEffect(() => {
+    setAuthorName(localStorage.getItem("crc_author_name") ?? "");
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setCommentsLoading(true);
+    const supabase = createClient();
+    supabase
+      .from("task_comments")
+      .select("*")
+      .eq("task_id", task.id)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("Échec chargement commentaires :", error.message);
+        setComments((data as TaskComment[]) ?? []);
+        setCommentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id]);
+
+  async function postComment() {
+    const body = newComment.trim();
+    const author = authorName.trim();
+    if (!body || !author) return;
+    localStorage.setItem("crc_author_name", author);
+    setPostingComment(true);
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("task_comments")
+      .insert({ task_id: task.id, author_name: author, body })
+      .select()
+      .single();
+    setPostingComment(false);
+    if (error) {
+      console.error("Échec envoi commentaire :", error.message);
+      return;
+    }
+    setComments((prev) => [...prev, data as TaskComment]);
+    setNewComment("");
+  }
 
   const dependsOn = dependencies.filter((d) => d.task_id === task.id);
   const dependents = dependencies.filter((d) => d.depends_on_task_id === task.id);
@@ -325,6 +376,67 @@ export default function TaskDrawer({
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="pt-4 border-t border-line space-y-3">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink/50">
+              <MessageSquare size={12} />
+              Commentaires {comments.length > 0 && `(${comments.length})`}
+            </div>
+
+            {commentsLoading ? (
+              <p className="text-xs text-ink/30">Chargement...</p>
+            ) : (
+              <div className="space-y-2.5 max-h-64 overflow-y-auto">
+                {comments.map((c) => (
+                  <div key={c.id} className="text-sm bg-white border border-line rounded-md px-3 py-2">
+                    <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                      <span className="font-medium text-xs">{c.author_name}</span>
+                      <span className="text-[10px] text-ink/35 shrink-0">
+                        {new Date(c.created_at).toLocaleString("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-ink/80 whitespace-pre-wrap">{c.body}</p>
+                  </div>
+                ))}
+                {comments.length === 0 && (
+                  <p className="text-xs text-ink/30">Aucun commentaire pour l'instant.</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <input
+                value={authorName}
+                onChange={(e) => setAuthorName(e.target.value)}
+                placeholder="Ton nom"
+                className="w-full border border-line rounded-md px-2.5 py-1.5 text-xs bg-white"
+              />
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) postComment();
+                  }}
+                  rows={2}
+                  placeholder="Écrire un commentaire... (Ctrl+Entrée pour envoyer)"
+                  className="flex-1 border border-line rounded-md px-2.5 py-1.5 text-sm bg-white"
+                />
+                <button
+                  onClick={postComment}
+                  disabled={postingComment || !newComment.trim() || !authorName.trim()}
+                  className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm disabled:opacity-30 shrink-0"
+                >
+                  Envoyer
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="pt-4 border-t border-line">

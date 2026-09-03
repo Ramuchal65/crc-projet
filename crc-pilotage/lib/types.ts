@@ -47,3 +47,11 @@ export interface TaskDependency {
   task_id: string;
   depends_on_task_id: string;
 }
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  author_name: string;
+  body: string;
+  created_at: string;
+}

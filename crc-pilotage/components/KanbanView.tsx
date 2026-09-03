@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
 import { initials, avatarColor, isOverdue } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock, ListChecks, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -21,6 +21,7 @@ export default function KanbanView({
   onSelect,
   onQuickAdd,
   onRequestLink,
+  onToggleSubtask,
 }: {
   tasks: Task[];
   dependencies: TaskDependency[];
@@ -30,6 +31,7 @@ export default function KanbanView({
   onSelect: (id: string) => void;
   onQuickAdd: (title: string, status: Status) => void;
   onRequestLink: (draggedId: string, targetId: string) => void;
+  onToggleSubtask: (taskId: string, subtaskId: string) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<Status | null>(null);
@@ -259,6 +261,33 @@ export default function KanbanView({
                       )}
                     </div>
 
+                    {subtasks.length > 0 && (
+                      <div className="mt-2 pl-4 space-y-1">
+                        {subtasks.slice(0, 4).map((s) => (
+                          <label
+                            key={s.id}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 text-xs cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={s.done}
+                              onChange={() => onToggleSubtask(task.id, s.id)}
+                              className="accent-accent shrink-0"
+                            />
+                            <span className={s.done ? "line-through text-ink/35" : "text-ink/60"}>
+                              {s.title}
+                            </span>
+                          </label>
+                        ))}
+                        {subtasks.length > 4 && (
+                          <p className="text-[11px] text-ink/35 pl-5">
+                            +{subtasks.length - 4} de plus
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-3 pl-4">
                       <div className="flex items-center gap-1.5">
                         {firstResponsable && (
@@ -278,15 +307,6 @@ export default function KanbanView({
                           >
                             <CalendarDays size={11} />
                             {task.due_date_raw}
-                          </span>
-                        )}
-                        {subtasks.length > 0 && (
-                          <span
-                            className="flex items-center gap-1 text-[11px] text-ink/40"
-                            title={`${doneCount}/${subtasks.length} sous-tâches terminées`}
-                          >
-                            <ListChecks size={11} />
-                            {doneCount}/{subtasks.length}
                           </span>
                         )}
                       </div>

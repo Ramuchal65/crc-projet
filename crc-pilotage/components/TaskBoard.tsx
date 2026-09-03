@@ -157,6 +157,15 @@ export default function TaskBoard({
     setLinkRequest({ a, b });
   }
 
+  function toggleSubtaskInline(taskId: string, subtaskId: string) {
+    const task = taskById.get(taskId);
+    if (!task) return;
+    const updated = (task.subtasks ?? []).map((s) =>
+      s.id === subtaskId ? { ...s, done: !s.done } : s
+    );
+    updateTask(taskId, { subtasks: updated });
+  }
+
   return (
     <>
       <div className="space-y-5">
@@ -231,6 +240,7 @@ export default function TaskBoard({
             onSelect={setSelectedTaskId}
             onQuickAdd={createTask}
             onRequestLink={requestLink}
+            onToggleSubtask={toggleSubtaskInline}
           />
         ) : (
           <>
