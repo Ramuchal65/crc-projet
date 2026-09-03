@@ -4,8 +4,8 @@
 @tailwind utilities;
 
 body {
-  background: #F7F6F3;
-  color: #1C1E22;
+  background: #F6F7F8;
+  color: #242832;
 }
 
 ::selection {

@@ -14,8 +14,8 @@ const config: Config = {
     extend: {
       colors: {
         ink: "#242832",
-        paper: "#F7F6F3",
-        line: "#DDD9D2",
+        paper: "#F6F7F8",
+        line: "#E2E4E8",
         sidebar: "#1E2430",
         accent: "#3E6FA8",
         accentSoft: "#EAF1F8",

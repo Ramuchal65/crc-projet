@@ -8,6 +8,7 @@ import KanbanView from "./KanbanView";
 import ListView from "./ListView";
 import TaskDrawer from "./TaskDrawer";
 import QuickAdd from "./QuickAdd";
+import LinkDependencyModal from "./LinkDependencyModal";
 
 export default function TaskBoard({
   initialTasks,
@@ -26,6 +27,7 @@ export default function TaskBoard({
   const [responsableFilter, setResponsableFilter] = useState<string | "tous">("tous");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [quickAddStatus, setQuickAddStatus] = useState<Status | null>(null);
+  const [linkRequest, setLinkRequest] = useState<{ a: Task; b: Task } | null>(null);
 
   const supabase = createClient();
 
@@ -148,6 +150,13 @@ export default function TaskBoard({
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
+  function requestLink(draggedId: string, targetId: string) {
+    const a = taskById.get(draggedId);
+    const b = taskById.get(targetId);
+    if (!a || !b) return;
+    setLinkRequest({ a, b });
+  }
+
   return (
     <>
       <div className="space-y-5">
@@ -220,6 +229,7 @@ export default function TaskBoard({
             onReorder={reorderColumn}
             onSelect={setSelectedTaskId}
             onQuickAdd={createTask}
+            onRequestLink={requestLink}
           />
         ) : (
           <>
@@ -244,6 +254,18 @@ export default function TaskBoard({
           onDelete={() => deleteTask(selectedTask.id)}
           onAddDependency={(dependsOnId) => addDependency(selectedTask.id, dependsOnId)}
           onRemoveDependency={removeDependency}
+        />
+      )}
+
+      {linkRequest && (
+        <LinkDependencyModal
+          taskA={linkRequest.a}
+          taskB={linkRequest.b}
+          onChoose={(dependentId, dependsOnId) => {
+            addDependency(dependentId, dependsOnId);
+            setLinkRequest(null);
+          }}
+          onCancel={() => setLinkRequest(null)}
         />
       )}
     </>

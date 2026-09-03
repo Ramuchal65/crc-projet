@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/types";
 import { initials, avatarColor, isOverdue } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, ListChecks, Link2 } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -19,6 +19,7 @@ export default function KanbanView({
   onReorder,
   onSelect,
   onQuickAdd,
+  onRequestLink,
 }: {
   tasks: Task[];
   blockedTaskIds: Set<string>;
@@ -26,9 +27,13 @@ export default function KanbanView({
   onReorder: (status: Status, orderedIds: string[]) => void;
   onSelect: (id: string) => void;
   onQuickAdd: (title: string, status: Status) => void;
+  onRequestLink: (draggedId: string, targetId: string) => void;
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<Status | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; zone: "before" | "after" | "link" } | null>(
+    null
+  );
   const [addingIn, setAddingIn] = useState<Status | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -37,7 +42,7 @@ export default function KanbanView({
     items: tasks.filter((t) => t.status === status).sort((a, b) => a.order_index - b.order_index),
   }));
 
-  function handleDrop(status: Status, targetId: string | null) {
+  function handleReorderDrop(status: Status, targetId: string | null, zone: "before" | "after" | null) {
     if (!dragId) return;
     const dragged = tasks.find((t) => t.id === dragId);
     if (!dragged) return;
@@ -49,12 +54,30 @@ export default function KanbanView({
       .sort((a, b) => a.order_index - b.order_index)
       .map((t) => t.id);
 
-    const insertAt = targetId ? columnItems.indexOf(targetId) : columnItems.length;
-    columnItems.splice(insertAt < 0 ? columnItems.length : insertAt, 0, dragId);
+    let insertAt = targetId ? columnItems.indexOf(targetId) : columnItems.length;
+    if (insertAt < 0) insertAt = columnItems.length;
+    if (zone === "after") insertAt += 1;
+    columnItems.splice(insertAt, 0, dragId);
     onReorder(status, columnItems);
 
     setDragId(null);
     setOverColumn(null);
+    setDropTarget(null);
+  }
+
+  function handleCardDrop(status: Status, targetTask: Task) {
+    if (!dragId || dragId === targetTask.id) {
+      setDragId(null);
+      setDropTarget(null);
+      return;
+    }
+    if (dropTarget?.zone === "link") {
+      onRequestLink(dragId, targetTask.id);
+      setDragId(null);
+      setDropTarget(null);
+      return;
+    }
+    handleReorderDrop(status, targetTask.id, dropTarget?.zone === "after" ? "after" : "before");
   }
 
   function submitDraft(status: Status) {
@@ -76,7 +99,7 @@ export default function KanbanView({
           onDragLeave={() => setOverColumn(null)}
           onDrop={(e) => {
             e.preventDefault();
-            handleDrop(col.status, null);
+            handleReorderDrop(col.status, null, null);
           }}
           className={`rounded-lg p-2 space-y-2 min-h-[160px] transition-colors ${
             overColumn === col.status ? "bg-ink/[0.04] ring-1 ring-ink/10" : ""
@@ -124,64 +147,101 @@ export default function KanbanView({
               const overdue = isOverdue(task.due_date) && task.status !== "fait";
               const blocked = blockedTaskIds.has(task.id);
               const firstResponsable = task.responsible_name_raw?.split(",")[0]?.trim();
+              const isDropTarget = dropTarget?.id === task.id && dragId !== task.id;
+              const linkMode = isDropTarget && dropTarget?.zone === "link";
               return (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={() => setDragId(task.id)}
-                  onDragEnd={() => setDragId(null)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDrop(col.status, task.id);
-                  }}
-                  onClick={() => onSelect(task.id)}
-                  className={`group border rounded-lg p-3 bg-white cursor-pointer transition-all hover:border-accent/40 hover:shadow-sm ${
-                    blocked ? "border-critique/25" : "border-line"
-                  } ${dragId === task.id ? "opacity-30" : ""}`}
-                >
-                  <div className="flex items-start gap-2">
-                    <GripVertical
-                      size={14}
-                      className="text-ink/0 group-hover:text-ink/25 -ml-1 mt-0.5 shrink-0 cursor-grab transition-colors"
-                    />
-                    <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">
-                      {task.title}
-                    </p>
-                    {blocked && (
-                      <span title="Bloquée par une dépendance">
-                        <Lock size={12} className="text-critique shrink-0 mt-1" />
-                      </span>
+                <div key={task.id}>
+                  {isDropTarget && dropTarget?.zone === "before" && (
+                    <div className="h-0.5 bg-accent rounded-full mx-1 mb-2" />
+                  )}
+                  <div
+                    draggable
+                    onDragStart={() => setDragId(task.id)}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setDropTarget(null);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const ratio = (e.clientY - rect.top) / rect.height;
+                      const zone: "before" | "after" | "link" =
+                        ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "link";
+                      setDropTarget({ id: task.id, zone });
+                      setOverColumn(col.status);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCardDrop(col.status, task);
+                    }}
+                    onClick={() => onSelect(task.id)}
+                    className={`group border rounded-lg p-3 bg-white cursor-pointer transition-all ${
+                      linkMode
+                        ? "ring-2 ring-accent border-accent shadow-sm scale-[1.015] cursor-copy"
+                        : "hover:border-accent/40 hover:shadow-sm"
+                    } ${blocked ? "border-critique/25" : linkMode ? "" : "border-line"} ${
+                      dragId === task.id ? "opacity-30" : ""
+                    }`}
+                  >
+                    {linkMode && (
+                      <div className="flex items-center gap-1 text-[11px] text-accent font-medium mb-1.5">
+                        <Link2 size={11} />
+                        Relâcher pour créer une dépendance
+                      </div>
                     )}
-                  </div>
-
-                  <div className="flex items-center justify-between mt-3 pl-4">
-                    <div className="flex items-center gap-1.5">
-                      {firstResponsable && (
-                        <span
-                          style={{ backgroundColor: avatarColor(firstResponsable) }}
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
-                          title={task.responsible_name_raw ?? undefined}
-                        >
-                          {initials(firstResponsable)}
-                        </span>
-                      )}
-                      {task.due_date_raw && (
-                        <span
-                          className={`flex items-center gap-1 text-[11px] ${
-                            overdue ? "text-critique font-medium" : "text-ink/40"
-                          }`}
-                        >
-                          <CalendarDays size={11} />
-                          {task.due_date_raw}
+                    <div className="flex items-start gap-2">
+                      <GripVertical
+                        size={14}
+                        className="text-ink/0 group-hover:text-ink/25 -ml-1 mt-0.5 shrink-0 cursor-grab transition-colors"
+                      />
+                      <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">
+                        {task.title}
+                      </p>
+                      {blocked && (
+                        <span title="Bloquée par une dépendance">
+                          <Lock size={12} className="text-critique shrink-0 mt-1" />
                         </span>
                       )}
                     </div>
-                    <span className={`text-[11px] font-medium text-${task.priority} shrink-0`}>
-                      {PRIORITY_LABEL[task.priority]}
-                    </span>
+
+                    <div className="flex items-center justify-between mt-3 pl-4">
+                      <div className="flex items-center gap-1.5">
+                        {firstResponsable && (
+                          <span
+                            style={{ backgroundColor: avatarColor(firstResponsable) }}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium text-white shrink-0"
+                            title={task.responsible_name_raw ?? undefined}
+                          >
+                            {initials(firstResponsable)}
+                          </span>
+                        )}
+                        {task.due_date_raw && (
+                          <span
+                            className={`flex items-center gap-1 text-[11px] ${
+                              overdue ? "text-critique font-medium" : "text-ink/40"
+                            }`}
+                          >
+                            <CalendarDays size={11} />
+                            {task.due_date_raw}
+                          </span>
+                        )}
+                        {task.subtasks?.length > 0 && (
+                          <span className="flex items-center gap-1 text-[11px] text-ink/40">
+                            <ListChecks size={11} />
+                            {task.subtasks.filter((s) => s.done).length}/{task.subtasks.length}
+                          </span>
+                        )}
+                      </div>
+                      <span className={`text-[11px] font-medium text-${task.priority} shrink-0`}>
+                        {PRIORITY_LABEL[task.priority]}
+                      </span>
+                    </div>
                   </div>
+                  {isDropTarget && dropTarget?.zone === "after" && (
+                    <div className="h-0.5 bg-accent rounded-full mx-1 mt-2" />
+                  )}
                 </div>
               );
             })}

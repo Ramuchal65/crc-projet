@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2, Link2, ChevronRight } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
+import { X, Trash2, Link2, ChevronRight, ListChecks, Plus } from "lucide-react";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, Subtask } from "@/lib/types";
 
 export default function TaskDrawer({
   task,
@@ -29,6 +29,7 @@ export default function TaskDrawer({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [depPick, setDepPick] = useState("");
+  const [newSubtask, setNewSubtask] = useState("");
 
   useEffect(() => {
     setTitle(task.title);
@@ -55,6 +56,23 @@ export default function TaskDrawer({
   const availableToAdd = allTasks.filter(
     (t) => t.id !== task.id && !dependsOn.some((d) => d.depends_on_task_id === t.id)
   );
+
+  const subtasks = task.subtasks ?? [];
+
+  function addSubtask() {
+    const title = newSubtask.trim();
+    if (!title) return;
+    onUpdate({ subtasks: [...subtasks, { id: crypto.randomUUID(), title, done: false }] });
+    setNewSubtask("");
+  }
+
+  function toggleSubtask(id: string) {
+    onUpdate({ subtasks: subtasks.map((s) => (s.id === id ? { ...s, done: !s.done } : s)) });
+  }
+
+  function removeSubtask(id: string) {
+    onUpdate({ subtasks: subtasks.filter((s) => s.id !== id) });
+  }
 
   return (
     <div className="fixed inset-0 z-50">
@@ -178,6 +196,52 @@ export default function TaskDrawer({
                 disabled
                 className="w-full border border-line rounded-md px-2 py-2 bg-line/20 text-sm text-ink/50"
               />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink/50">
+              <ListChecks size={12} />
+              Sous-tâches {subtasks.length > 0 && `(${subtasks.filter((s) => s.done).length}/${subtasks.length})`}
+            </div>
+            <div className="space-y-1">
+              {subtasks.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 group">
+                  <input
+                    type="checkbox"
+                    checked={s.done}
+                    onChange={() => toggleSubtask(s.id)}
+                    className="accent-accent"
+                  />
+                  <span className={`flex-1 text-sm ${s.done ? "line-through text-ink/35" : ""}`}>
+                    {s.title}
+                  </span>
+                  <button
+                    onClick={() => removeSubtask(s.id)}
+                    className="opacity-0 group-hover:opacity-100 text-ink/30 hover:text-critique transition-opacity"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                value={newSubtask}
+                onChange={(e) => setNewSubtask(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addSubtask();
+                }}
+                placeholder="Nouvelle sous-tâche..."
+                className="flex-1 border border-line rounded-md px-2.5 py-1.5 text-sm bg-white"
+              />
+              <button
+                onClick={addSubtask}
+                disabled={!newSubtask.trim()}
+                className="text-ink/40 hover:text-accent disabled:opacity-30 transition-colors"
+              >
+                <Plus size={16} />
+              </button>
             </div>
           </div>
 
