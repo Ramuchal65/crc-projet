@@ -2,36 +2,39 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status, TaskDependency } from "@/lib/types";
+import { Task, Priority, Status, TaskDependency, Project } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
 import TaskDrawer from "./TaskDrawer";
 import QuickAdd from "./QuickAdd";
 import LinkDependencyModal from "./LinkDependencyModal";
+import ProjectSelector from "./ProjectSelector";
 
 export default function TaskBoard({
   initialTasks,
   initialDependencies,
-  projectId,
+  initialProjects,
 }: {
   initialTasks: Task[];
   initialDependencies: TaskDependency[];
-  projectId: string;
+  initialProjects: Project[];
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [dependencies, setDependencies] = useState<TaskDependency[]>(initialDependencies);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const [view, setView] = useState<"kanban" | "liste">("kanban");
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "toutes">("toutes");
   const [responsableFilter, setResponsableFilter] = useState<string | "tous">("tous");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [quickAddStatus, setQuickAddStatus] = useState<Status | null>(null);
   const [linkRequest, setLinkRequest] = useState<{ a: Task; b: Task } | null>(null);
 
   const supabase = createClient();
 
   const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
   const blockedTaskIds = useMemo(() => {
     const set = new Set<string>();
@@ -43,7 +46,6 @@ export default function TaskBoard({
   }, [dependencies, taskById]);
 
   async function addDependency(taskId: string, dependsOnTaskId: string) {
-    // évite l'auto-référence et le cycle direct A→B→A
     if (taskId === dependsOnTaskId) return;
     const reverseExists = dependencies.some(
       (d) => d.task_id === dependsOnTaskId && d.depends_on_task_id === taskId
@@ -70,6 +72,20 @@ export default function TaskBoard({
     if (error) console.error("Échec suppression dépendance :", error.message);
   }
 
+  async function createProject(name: string) {
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({ name })
+      .select()
+      .single();
+    if (error) {
+      console.error("Échec création projet :", error.message);
+      return;
+    }
+    setProjects((prev) => [...prev, data as Project]);
+    setSelectedProjectId((data as Project).id);
+  }
+
   const responsables = useMemo(() => {
     const set = new Set<string>();
     tasks.forEach((t) => {
@@ -82,6 +98,7 @@ export default function TaskBoard({
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
+      if (selectedProjectId !== "all" && t.project_id !== selectedProjectId) return false;
       if (priorityFilter !== "toutes" && t.priority !== priorityFilter) return false;
       if (
         responsableFilter !== "tous" &&
@@ -92,7 +109,7 @@ export default function TaskBoard({
         return false;
       return true;
     });
-  }, [tasks, priorityFilter, responsableFilter, search]);
+  }, [tasks, selectedProjectId, priorityFilter, responsableFilter, search]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
     if (patch.status === "fait" && blockedTaskIds.has(id)) {
@@ -122,14 +139,22 @@ export default function TaskBoard({
   }
 
   async function createTask(title: string, status: Status = "a_faire") {
+    // en vue "Tous les projets", on assigne au premier projet — un projet
+    // précis doit être sélectionné pour une assignation intentionnelle
+    const targetProjectId = selectedProjectId !== "all" ? selectedProjectId : projects[0]?.id;
+    if (!targetProjectId) {
+      alert("Crée d'abord un projet avant d'ajouter des tâches.");
+      return;
+    }
     const { data, error } = await supabase
       .from("tasks")
       .insert({
-        project_id: projectId,
+        project_id: targetProjectId,
         title,
         priority: "moyenne",
         status,
-        order_index: tasks.filter((t) => t.status === status).length,
+        order_index: tasks.filter((t) => t.status === status && t.project_id === targetProjectId)
+          .length,
       })
       .select()
       .single();
@@ -166,6 +191,8 @@ export default function TaskBoard({
     updateTask(taskId, { subtasks: updated });
   }
 
+  const showProjectBadge = selectedProjectId === "all" && projects.length > 1;
+
   return (
     <>
       <div className="space-y-5">
@@ -176,6 +203,12 @@ export default function TaskBoard({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm">
+            <ProjectSelector
+              projects={projects}
+              selectedId={selectedProjectId}
+              onSelect={setSelectedProjectId}
+              onCreate={createProject}
+            />
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/30" />
               <input
@@ -235,6 +268,8 @@ export default function TaskBoard({
             tasks={filteredTasks}
             dependencies={dependencies}
             blockedTaskIds={blockedTaskIds}
+            projectById={projectById}
+            showProjectBadge={showProjectBadge}
             onStatusChange={(id, status) => updateTask(id, { status })}
             onReorder={reorderColumn}
             onSelect={setSelectedTaskId}
@@ -248,6 +283,8 @@ export default function TaskBoard({
             <ListView
               tasks={filteredTasks}
               blockedTaskIds={blockedTaskIds}
+              projectById={projectById}
+              showProjectBadge={showProjectBadge}
               onUpdate={updateTask}
               onSelect={setSelectedTaskId}
             />

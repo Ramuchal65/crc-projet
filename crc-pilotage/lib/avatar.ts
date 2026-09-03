@@ -21,6 +21,23 @@ export function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+const PROJECT_COLORS = [
+  "#3E6FA8", // bleu (accent)
+  "#6B5C8A", // prune
+  "#4B6E5C", // sapin
+  "#8A6B44", // ambre
+  "#5C6B8A", // ardoise
+  "#8A5A44", // terre
+];
+
+export function projectColor(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PROJECT_COLORS[Math.abs(hash) % PROJECT_COLORS.length];
+}
+
 export function isOverdue(dueDate: string | null): boolean {
   if (!dueDate) return false;
   return new Date(dueDate) < new Date(new Date().toDateString());

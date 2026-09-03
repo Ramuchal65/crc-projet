@@ -9,8 +9,9 @@ import {
   STATUS_ORDER,
   PRIORITY_LABEL,
   PRIORITY_ORDER,
+  Project,
 } from "@/lib/types";
-import { initials, avatarColor, isOverdue, dueDateLabel } from "@/lib/avatar";
+import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
 import { ArrowUp, ArrowDown, Lock } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
@@ -18,11 +19,15 @@ type SortKey = "priority" | "due_date" | "status" | "title";
 export default function ListView({
   tasks,
   blockedTaskIds,
+  projectById,
+  showProjectBadge,
   onUpdate,
   onSelect,
 }: {
   tasks: Task[];
   blockedTaskIds: Set<string>;
+  projectById: Map<string, Project>;
+  showProjectBadge: boolean;
   onUpdate: (id: string, patch: Partial<Task>) => void;
   onSelect: (id: string) => void;
 }) {
@@ -82,7 +87,15 @@ export default function ListView({
               {blockedTaskIds.has(task.id) && (
                 <Lock size={11} className="text-critique shrink-0" />
               )}
-              {task.title}
+              {showProjectBadge && (
+                <span
+                  className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded text-white"
+                  style={{ backgroundColor: projectColor(task.project_id) }}
+                >
+                  {projectById.get(task.project_id)?.name ?? "?"}
+                </span>
+              )}
+              <span className="truncate">{task.title}</span>
             </button>
             <div className="flex items-center gap-1.5 min-w-0">
               {firstResponsable && (

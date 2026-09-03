@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Task, TaskDependency, PRIORITY_LABEL } from "@/lib/types";
+import { Task, TaskDependency, Project, PRIORITY_LABEL } from "@/lib/types";
+import { projectColor } from "@/lib/avatar";
+import ProjectSelector from "./ProjectSelector";
+import { createClient } from "@/lib/supabase/client";
 
 const DAY_WIDTH = 28;
 const ROW_HEIGHT = 40;
@@ -34,14 +37,37 @@ const PRIORITY_BAR: Record<string, string> = {
 export default function GanttView({
   tasks,
   dependencies,
+  initialProjects,
 }: {
   tasks: Task[];
   dependencies: TaskDependency[];
+  initialProjects: Project[];
 }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
+  const supabase = createClient();
 
-  const dated = useMemo(() => tasks.filter((t) => !!t.due_date), [tasks]);
-  const undated = tasks.length - dated.length;
+  async function createProject(name: string) {
+    const { data, error } = await supabase.from("projects").insert({ name }).select().single();
+    if (error) {
+      console.error("Échec création projet :", error.message);
+      return;
+    }
+    setProjects((prev) => [...prev, data as Project]);
+    setSelectedProjectId((data as Project).id);
+  }
+
+  const showProjectBadge = selectedProjectId === "all" && projects.length > 1;
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+
+  const scopedTasks = useMemo(
+    () => (selectedProjectId === "all" ? tasks : tasks.filter((t) => t.project_id === selectedProjectId)),
+    [tasks, selectedProjectId]
+  );
+
+  const dated = useMemo(() => scopedTasks.filter((t) => !!t.due_date), [scopedTasks]);
+  const undated = scopedTasks.length - dated.length;
 
   const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
     if (dated.length === 0) {
@@ -124,21 +150,40 @@ export default function GanttView({
 
   if (dated.length === 0) {
     return (
-      <div className="text-center py-16 text-ink/50 space-y-2">
-        <p>Aucune tâche avec échéance à afficher.</p>
-        <p className="text-xs">Renseigne une échéance sur tes tâches pour les voir apparaître ici.</p>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-lg font-medium">Gantt</h1>
+          <ProjectSelector
+            projects={projects}
+            selectedId={selectedProjectId}
+            onSelect={setSelectedProjectId}
+            onCreate={createProject}
+          />
+        </div>
+        <div className="text-center py-16 text-ink/50 space-y-2">
+          <p>Aucune tâche avec échéance à afficher.</p>
+          <p className="text-xs">Renseigne une échéance sur tes tâches pour les voir apparaître ici.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="text-lg font-medium">Gantt</h1>
-        <p className="text-sm text-ink/50">
-          {dated.length} tâche(s) planifiée(s)
-          {undated > 0 && ` · ${undated} sans échéance (non affichée${undated > 1 ? "s" : ""})`}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-medium">Gantt</h1>
+          <p className="text-sm text-ink/50">
+            {dated.length} tâche(s) planifiée(s)
+            {undated > 0 && ` · ${undated} sans échéance (non affichée${undated > 1 ? "s" : ""})`}
+          </p>
+        </div>
+        <ProjectSelector
+          projects={projects}
+          selectedId={selectedProjectId}
+          onSelect={setSelectedProjectId}
+          onCreate={createProject}
+        />
       </div>
 
       <div className="flex items-center gap-4 text-[11px] text-ink/40 px-1">
@@ -163,13 +208,20 @@ export default function GanttView({
                 key={task.id}
                 onMouseEnter={() => setHoverId(task.id)}
                 onMouseLeave={() => setHoverId(null)}
-                className={`flex items-center px-3 text-xs truncate border-b border-line/60 transition-colors ${
+                className={`flex items-center gap-1.5 px-3 text-xs truncate border-b border-line/60 transition-colors ${
                   hoverId === task.id ? "bg-accentSoft" : ""
                 }`}
                 style={{ height: ROW_HEIGHT }}
                 title={task.title}
               >
-                {task.title}
+                {showProjectBadge && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: projectColor(task.project_id) }}
+                    title={projectById.get(task.project_id)?.name}
+                  />
+                )}
+                <span className="truncate">{task.title}</span>
               </div>
             ))}
           </div>

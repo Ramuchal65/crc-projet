@@ -1,6 +1,13 @@
 export type Priority = "haute" | "moyenne" | "basse";
 export type Status = "a_faire" | "en_cours" | "bloque" | "fait";
 
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
 export interface Subtask {
   id: string;
   title: string;

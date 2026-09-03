@@ -1,21 +1,19 @@
 import { createClient } from "@/lib/supabase/server";
 import GanttView from "@/components/GanttView";
-import { Task, TaskDependency } from "@/lib/types";
+import { Task, TaskDependency, Project } from "@/lib/types";
 
 export default async function GanttPage() {
   const supabase = createClient();
 
-  const { data: project } = await supabase
+  const { data: projects, error: projectsError } = await supabase
     .from("projects")
-    .select("id")
-    .eq("name", "Pilotage CRC")
-    .single();
+    .select("*")
+    .order("created_at", { ascending: true });
 
-  if (!project) {
+  if (projectsError) {
     return (
       <p className="text-critique text-sm">
-        Projet "Pilotage CRC" introuvable — vérifie que la migration SQL a bien été
-        exécutée.
+        Erreur de chargement des projets : {projectsError.message}
       </p>
     );
   }
@@ -23,7 +21,6 @@ export default async function GanttPage() {
   const { data: tasks, error } = await supabase
     .from("tasks")
     .select("*")
-    .eq("project_id", project.id)
     .order("due_date", { ascending: true, nullsFirst: false });
 
   if (error) {
@@ -39,6 +36,7 @@ export default async function GanttPage() {
     <GanttView
       tasks={(tasks as Task[]) ?? []}
       dependencies={(dependencies as TaskDependency[]) ?? []}
+      initialProjects={(projects as Project[]) ?? []}
     />
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
-import { initials, avatarColor, isOverdue, dueDateLabel } from "@/lib/avatar";
+import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency, Project } from "@/lib/types";
+import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
 import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
@@ -16,6 +16,8 @@ export default function KanbanView({
   tasks,
   dependencies,
   blockedTaskIds,
+  projectById,
+  showProjectBadge,
   onStatusChange,
   onReorder,
   onSelect,
@@ -26,6 +28,8 @@ export default function KanbanView({
   tasks: Task[];
   dependencies: TaskDependency[];
   blockedTaskIds: Set<string>;
+  projectById: Map<string, Project>;
+  showProjectBadge: boolean;
   onStatusChange: (id: string, status: Status) => void;
   onReorder: (status: Status, orderedIds: string[]) => void;
   onSelect: (id: string) => void;
@@ -231,6 +235,14 @@ export default function KanbanView({
                         <Link2 size={11} />
                         Relâcher pour créer une dépendance
                       </div>
+                    )}
+                    {showProjectBadge && (
+                      <span
+                        className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-1.5 text-white"
+                        style={{ backgroundColor: projectColor(task.project_id) }}
+                      >
+                        {projectById.get(task.project_id)?.name ?? "?"}
+                      </span>
                     )}
                     <div className="flex items-start gap-2">
                       <GripVertical

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Project } from "@/lib/types";
 
 type Tache = {
   ref_source: string | null;
@@ -36,6 +37,23 @@ export default function ImportPage() {
   const [extraction, setExtraction] = useState<Extraction | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectId, setProjectId] = useState<string>("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("projects")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .then(({ data }) => {
+        const list = (data as Project[]) ?? [];
+        setProjects(list);
+        const remembered = localStorage.getItem("crc_last_project_id");
+        const fallback = list.find((p) => p.id === remembered)?.id ?? list[0]?.id ?? "";
+        setProjectId(fallback);
+      });
+  }, []);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -94,24 +112,20 @@ export default function ImportPage() {
 
   async function handleConfirm() {
     if (!extraction) return;
+    if (!projectId) {
+      setError("Sélectionne un projet avant de valider.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       const supabase = createClient();
-
-      // Projet par défaut "Pilotage CRC" — brique ultérieure : choix du projet
-      const { data: project } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("name", "Pilotage CRC")
-        .single();
-
-      if (!project) throw new Error("Projet 'Pilotage CRC' introuvable.");
+      localStorage.setItem("crc_last_project_id", projectId);
 
       const { data: crImport, error: crErr } = await supabase
         .from("cr_imports")
         .insert({
-          project_id: project.id,
+          project_id: projectId,
           raw_text: rawText,
           cr_title: extraction.cr_meta.titre,
           cr_date: extraction.cr_meta.date,
@@ -121,7 +135,7 @@ export default function ImportPage() {
       if (crErr) throw crErr;
 
       const tasksToInsert = extraction.taches.map((t, i) => ({
-        project_id: project.id,
+        project_id: projectId,
         cr_import_id: crImport.id,
         ref_source: t.ref_source,
         title: t.titre,
@@ -141,7 +155,7 @@ export default function ImportPage() {
 
       if (extraction.risques.length > 0) {
         const risksToInsert = extraction.risques.map((r) => ({
-          project_id: project.id,
+          project_id: projectId,
           cr_import_id: crImport.id,
           level: r.niveau,
           description: r.description,
@@ -166,7 +180,7 @@ export default function ImportPage() {
         <h1 className="text-xl font-medium mb-2">CR importé</h1>
         <p className="text-ink/70 mb-6">
           {extraction?.taches.length} tâche(s) et {extraction?.risques.length} risque(s)
-          ajoutés au pilotage CRC.
+          ajoutés au projet "{projects.find((p) => p.id === projectId)?.name ?? ""}".
         </p>
         <a href="/" className="text-sm underline underline-offset-4">
           Voir la liste des tâches
@@ -177,7 +191,25 @@ export default function ImportPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-medium">Importer un compte-rendu</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-medium">Importer un compte-rendu</h1>
+        {projects.length > 0 && (
+          <label className="flex items-center gap-2 text-sm text-ink/60">
+            Projet
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="border border-line rounded-lg px-2 py-1.5 bg-white"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {!extraction && (
         <>
