@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Task, Priority, Status } from "@/lib/types";
+import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
 import TaskDrawer from "./TaskDrawer";
@@ -21,6 +22,7 @@ export default function TaskBoard({
   const [priorityFilter, setPriorityFilter] = useState<Priority | "toutes">("toutes");
   const [responsableFilter, setResponsableFilter] = useState<string | "tous">("tous");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [quickAddStatus, setQuickAddStatus] = useState<Status | null>(null);
 
   const supabase = createClient();
 
@@ -49,17 +51,12 @@ export default function TaskBoard({
   }, [tasks, priorityFilter, responsableFilter, search]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
-    // optimiste : on met à jour l'affichage avant la confirmation serveur
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     const { error } = await supabase
       .from("tasks")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (error) {
-      console.error("Échec de la mise à jour :", error.message);
-      // on ne revert pas silencieusement — l'utilisateur verra l'incohérence
-      // au prochain rechargement, ce qui est acceptable pour cette brique
-    }
+    if (error) console.error("Échec de la mise à jour :", error.message);
   }
 
   async function reorderColumn(status: Status, orderedIds: string[]) {
@@ -70,21 +67,19 @@ export default function TaskBoard({
       );
     });
     await Promise.all(
-      orderedIds.map((id, i) =>
-        supabase.from("tasks").update({ order_index: i }).eq("id", id)
-      )
+      orderedIds.map((id, i) => supabase.from("tasks").update({ order_index: i }).eq("id", id))
     );
   }
 
-  async function createTask(title: string) {
+  async function createTask(title: string, status: Status = "a_faire") {
     const { data, error } = await supabase
       .from("tasks")
       .insert({
         project_id: projectId,
         title,
         priority: "moyenne",
-        status: "a_faire",
-        order_index: tasks.filter((t) => t.status === "a_faire").length,
+        status,
+        order_index: tasks.filter((t) => t.status === status).length,
       })
       .select()
       .single();
@@ -105,76 +100,84 @@ export default function TaskBoard({
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 justify-between">
-        <div className="flex items-center gap-1 border border-line rounded-md p-0.5 bg-white text-sm">
-          <button
-            onClick={() => setView("kanban")}
-            className={`px-3 py-1.5 rounded ${
-              view === "kanban" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
-            }`}
-          >
-            Kanban
-          </button>
-          <button
-            onClick={() => setView("liste")}
-            className={`px-3 py-1.5 rounded ${
-              view === "liste" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
-            }`}
-          >
-            Liste
-          </button>
+    <>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center gap-3 justify-between">
+          <div>
+            <h1 className="text-lg font-medium">Tâches</h1>
+            <p className="text-sm text-ink/50">{filteredTasks.length} tâche(s)</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/30" />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border border-line rounded-md pl-8 pr-3 py-1.5 bg-white w-44"
+              />
+            </div>
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value as Priority | "toutes")}
+              className="border border-line rounded-md px-2 py-1.5 bg-white"
+            >
+              <option value="toutes">Toute priorité</option>
+              <option value="haute">Haute</option>
+              <option value="moyenne">Moyenne</option>
+              <option value="basse">Basse</option>
+            </select>
+            <select
+              value={responsableFilter}
+              onChange={(e) => setResponsableFilter(e.target.value)}
+              className="border border-line rounded-md px-2 py-1.5 bg-white max-w-[150px]"
+            >
+              <option value="tous">Tout responsable</option>
+              {responsables.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+
+            <div className="flex items-center gap-0.5 border border-line rounded-md p-0.5 bg-white">
+              <button
+                onClick={() => setView("kanban")}
+                className={`px-3 py-1.5 rounded text-sm ${
+                  view === "kanban" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+                }`}
+              >
+                Kanban
+              </button>
+              <button
+                onClick={() => setView("liste")}
+                className={`px-3 py-1.5 rounded text-sm ${
+                  view === "liste" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+                }`}
+              >
+                Liste
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <input
-            type="text"
-            placeholder="Rechercher..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="border border-line rounded-md px-3 py-1.5 bg-white w-40"
+        {view === "kanban" ? (
+          <KanbanView
+            tasks={filteredTasks}
+            onStatusChange={(id, status) => updateTask(id, { status })}
+            onReorder={reorderColumn}
+            onSelect={setSelectedTaskId}
+            onQuickAdd={createTask}
           />
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value as Priority | "toutes")}
-            className="border border-line rounded-md px-2 py-1.5 bg-white"
-          >
-            <option value="toutes">Toute priorité</option>
-            <option value="haute">Haute</option>
-            <option value="moyenne">Moyenne</option>
-            <option value="basse">Basse</option>
-          </select>
-          <select
-            value={responsableFilter}
-            onChange={(e) => setResponsableFilter(e.target.value)}
-            className="border border-line rounded-md px-2 py-1.5 bg-white max-w-[160px]"
-          >
-            <option value="tous">Tout responsable</option>
-            {responsables.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
+        ) : (
+          <>
+            <QuickAdd onCreate={(title) => createTask(title)} />
+            <ListView tasks={filteredTasks} onUpdate={updateTask} onSelect={setSelectedTaskId} />
+          </>
+        )}
       </div>
-
-      <QuickAdd onCreate={createTask} />
-
-      {view === "kanban" ? (
-        <KanbanView
-          tasks={filteredTasks}
-          onStatusChange={(id, status) => updateTask(id, { status })}
-          onReorder={reorderColumn}
-          onSelect={setSelectedTaskId}
-        />
-      ) : (
-        <ListView
-          tasks={filteredTasks}
-          onUpdate={updateTask}
-          onSelect={setSelectedTaskId}
-        />
-      )}
 
       {selectedTask && (
         <TaskDrawer
@@ -184,6 +187,6 @@ export default function TaskBoard({
           onDelete={() => deleteTask(selectedTask.id)}
         />
       )}
-    </div>
+    </>
   );
 }

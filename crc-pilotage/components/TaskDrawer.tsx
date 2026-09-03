@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { X, Trash2 } from "lucide-react";
 import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL } from "@/lib/types";
 
 export default function TaskDrawer({
@@ -18,8 +19,8 @@ export default function TaskDrawer({
   const [description, setDescription] = useState(task.description ?? "");
   const [responsible, setResponsible] = useState(task.responsible_name_raw ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // resynchronise les champs texte quand on change de tâche sélectionnée
   useEffect(() => {
     setTitle(task.title);
     setDescription(task.description ?? "");
@@ -27,20 +28,42 @@ export default function TaskDrawer({
     setConfirmingDelete(false);
   }, [task.id]);
 
+  useEffect(() => {
+    // déclenche la transition d'entrée après le premier rendu
+    const id = requestAnimationFrame(() => setMounted(true));
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleEsc);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, []);
+
   return (
-    <>
+    <div className="fixed inset-0 z-50">
       <div
-        className="fixed inset-0 bg-ink/20 z-40"
+        className={`absolute inset-0 bg-ink/25 transition-opacity duration-200 ${
+          mounted ? "opacity-100" : "opacity-0"
+        }`}
         onClick={onClose}
         aria-hidden="true"
       />
-      <aside className="fixed right-0 top-0 h-full w-full sm:w-[420px] bg-paper border-l border-line z-50 overflow-y-auto">
+      <aside
+        className={`absolute right-0 top-0 h-full w-full sm:w-[440px] bg-paper border-l border-line overflow-y-auto shadow-xl transition-transform duration-200 ease-out ${
+          mounted ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           {task.ref_source && (
             <span className="font-mono text-xs text-ink/40">{task.ref_source}</span>
           )}
-          <button onClick={onClose} className="text-ink/50 hover:text-ink text-sm ml-auto">
-            Fermer
+          <button
+            onClick={onClose}
+            className="text-ink/40 hover:text-ink transition-colors ml-auto p-1 rounded hover:bg-ink/5"
+          >
+            <X size={18} />
           </button>
         </div>
 
@@ -147,8 +170,9 @@ export default function TaskDrawer({
             {!confirmingDelete ? (
               <button
                 onClick={() => setConfirmingDelete(true)}
-                className="text-sm text-critique hover:underline underline-offset-4"
+                className="flex items-center gap-1.5 text-sm text-critique hover:underline underline-offset-4"
               >
+                <Trash2 size={14} />
                 Supprimer cette tâche
               </button>
             ) : (
@@ -171,6 +195,6 @@ export default function TaskDrawer({
           </div>
         </div>
       </aside>
-    </>
+    </div>
   );
 }
