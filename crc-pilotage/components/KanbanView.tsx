@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/types";
+import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
 import { initials, avatarColor, isOverdue } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock, ListChecks, Link2 } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, ListChecks, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -14,6 +14,7 @@ const COLUMN_ACCENT: Record<Status, string> = {
 
 export default function KanbanView({
   tasks,
+  dependencies,
   blockedTaskIds,
   onStatusChange,
   onReorder,
@@ -22,6 +23,7 @@ export default function KanbanView({
   onRequestLink,
 }: {
   tasks: Task[];
+  dependencies: TaskDependency[];
   blockedTaskIds: Set<string>;
   onStatusChange: (id: string, status: Status) => void;
   onReorder: (status: Status, orderedIds: string[]) => void;
@@ -36,6 +38,13 @@ export default function KanbanView({
   );
   const [addingIn, setAddingIn] = useState<Status | null>(null);
   const [draft, setDraft] = useState("");
+  const [hoverId, setHoverId] = useState<string | null>(null);
+
+  // pour une tâche survolée : ce dont elle a besoin (prérequis) vs ce qui l'attend (dépendants)
+  const prereqOf = new Set(dependencies.filter((d) => d.task_id === hoverId).map((d) => d.depends_on_task_id));
+  const waitingOn = new Set(dependencies.filter((d) => d.depends_on_task_id === hoverId).map((d) => d.task_id));
+  const hasLinks = (id: string) =>
+    dependencies.some((d) => d.task_id === id || d.depends_on_task_id === id);
 
   const columns = STATUS_ORDER.map((status) => ({
     status,
@@ -88,7 +97,20 @@ export default function KanbanView({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-2">
+      {dependencies.length > 0 && (
+        <div className="flex items-center gap-4 text-[11px] text-ink/40 px-1">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full border-2 border-basse" />
+            Survolez une tâche : prérequis en vert
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full border-2 border-accent" />
+            en attente d'elle en bleu
+          </span>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       {columns.map((col) => (
         <div
           key={col.status}
@@ -149,6 +171,21 @@ export default function KanbanView({
               const firstResponsable = task.responsible_name_raw?.split(",")[0]?.trim();
               const isDropTarget = dropTarget?.id === task.id && dragId !== task.id;
               const linkMode = isDropTarget && dropTarget?.zone === "link";
+              const subtasks = task.subtasks ?? [];
+              const doneCount = subtasks.filter((s) => s.done).length;
+              const progressPct = subtasks.length > 0 ? Math.round((doneCount / subtasks.length) * 100) : 0;
+
+              const isHovered = hoverId === task.id;
+              const isPrereqOfHovered = hoverId !== null && prereqOf.has(task.id);
+              const isWaitingOnHovered = hoverId !== null && waitingOn.has(task.id);
+              const isDimmed =
+                hoverId !== null && !isHovered && !isPrereqOfHovered && !isWaitingOnHovered;
+
+              let relationRing = "";
+              if (isHovered) relationRing = "ring-2 ring-ink/30";
+              else if (isPrereqOfHovered) relationRing = "ring-2 ring-basse";
+              else if (isWaitingOnHovered) relationRing = "ring-2 ring-accent";
+
               return (
                 <div key={task.id}>
                   {isDropTarget && dropTarget?.zone === "before" && (
@@ -177,12 +214,14 @@ export default function KanbanView({
                       handleCardDrop(col.status, task);
                     }}
                     onClick={() => onSelect(task.id)}
-                    className={`group border rounded-lg p-3 bg-white cursor-pointer transition-all ${
+                    onMouseEnter={() => hasLinks(task.id) && setHoverId(task.id)}
+                    onMouseLeave={() => setHoverId(null)}
+                    className={`group relative border rounded-lg p-3 bg-white cursor-pointer transition-all overflow-hidden ${
                       linkMode
                         ? "ring-2 ring-accent border-accent shadow-sm scale-[1.015] cursor-copy"
-                        : "hover:border-accent/40 hover:shadow-sm"
-                    } ${blocked ? "border-critique/25" : linkMode ? "" : "border-line"} ${
-                      dragId === task.id ? "opacity-30" : ""
+                        : `hover:border-accent/40 hover:shadow-sm ${relationRing}`
+                    } ${blocked ? "border-critique/25" : linkMode || relationRing ? "" : "border-line"} ${
+                      dragId === task.id ? "opacity-30" : isDimmed ? "opacity-35" : ""
                     }`}
                   >
                     {linkMode && (
@@ -200,9 +239,23 @@ export default function KanbanView({
                         {task.title}
                       </p>
                       {blocked && (
-                        <span title="Bloquée par une dépendance">
+                        <span title="Bloquée par une dépendance non terminée">
                           <Lock size={12} className="text-critique shrink-0 mt-1" />
                         </span>
+                      )}
+                      {!blocked && (
+                        <>
+                          {dependencies.some((d) => d.task_id === task.id) && (
+                            <span title="Dépend d'autres tâches">
+                              <ArrowDownToLine size={12} className="text-ink/25 shrink-0 mt-1" />
+                            </span>
+                          )}
+                          {dependencies.some((d) => d.depends_on_task_id === task.id) && (
+                            <span title="D'autres tâches en dépendent">
+                              <ArrowUpFromLine size={12} className="text-ink/25 shrink-0 mt-1" />
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
 
@@ -227,10 +280,13 @@ export default function KanbanView({
                             {task.due_date_raw}
                           </span>
                         )}
-                        {task.subtasks?.length > 0 && (
-                          <span className="flex items-center gap-1 text-[11px] text-ink/40">
+                        {subtasks.length > 0 && (
+                          <span
+                            className="flex items-center gap-1 text-[11px] text-ink/40"
+                            title={`${doneCount}/${subtasks.length} sous-tâches terminées`}
+                          >
                             <ListChecks size={11} />
-                            {task.subtasks.filter((s) => s.done).length}/{task.subtasks.length}
+                            {doneCount}/{subtasks.length}
                           </span>
                         )}
                       </div>
@@ -238,6 +294,17 @@ export default function KanbanView({
                         {PRIORITY_LABEL[task.priority]}
                       </span>
                     </div>
+
+                    {subtasks.length > 0 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-line/50">
+                        <div
+                          className={`h-full transition-all ${
+                            progressPct === 100 ? "bg-basse" : "bg-accent/70"
+                          }`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                   {isDropTarget && dropTarget?.zone === "after" && (
                     <div className="h-0.5 bg-accent rounded-full mx-1 mt-2" />
@@ -248,6 +315,7 @@ export default function KanbanView({
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

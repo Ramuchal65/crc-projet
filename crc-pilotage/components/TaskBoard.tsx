@@ -224,6 +224,7 @@ export default function TaskBoard({
         {view === "kanban" ? (
           <KanbanView
             tasks={filteredTasks}
+            dependencies={dependencies}
             blockedTaskIds={blockedTaskIds}
             onStatusChange={(id, status) => updateTask(id, { status })}
             onReorder={reorderColumn}
