@@ -17,7 +17,7 @@ export default function RootLayout({
       <body className="font-sans">
         <div className="flex min-h-screen">
           <Sidebar />
-          <main className="flex-1 px-8 py-8 max-w-6xl">{children}</main>
+          <main className="flex-1 px-8 py-8 max-w-[1600px] min-w-0">{children}</main>
         </div>
       </body>
     </html>
