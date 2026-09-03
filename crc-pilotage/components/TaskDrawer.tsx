@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment } from "@/lib/types";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 
 export default function TaskDrawer({
   task,
   allTasks,
   dependencies,
+  projects,
   onClose,
   onUpdate,
   onDelete,
@@ -18,6 +19,7 @@ export default function TaskDrawer({
   task: Task;
   allTasks: Task[];
   dependencies: TaskDependency[];
+  projects: Project[];
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => void;
   onDelete: () => void;
@@ -162,6 +164,23 @@ export default function TaskDrawer({
               onBlur={() => title.trim() && onUpdate({ title: title.trim() })}
               className="w-full border border-line rounded-md px-3 py-2 bg-white font-medium"
             />
+          </div>
+
+          <div>
+            <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
+              Projet
+            </label>
+            <select
+              value={task.project_id}
+              onChange={(e) => onUpdate({ project_id: e.target.value })}
+              className="w-full border border-line rounded-md px-2 py-2 bg-white text-sm"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

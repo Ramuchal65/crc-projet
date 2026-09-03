@@ -326,7 +326,10 @@ export default function KanbanView({
                             );
                           }
                           return (
-                            <span className="flex items-center gap-1 text-[11px] text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5">
+                            <span
+                              className="flex items-center gap-1 text-[11px] text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5"
+                              title="Sans échéance : n'apparaîtra pas dans le Gantt"
+                            >
                               <CalendarDays size={11} />
                               Pas d'échéance
                             </span>

@@ -297,6 +297,7 @@ export default function TaskBoard({
           task={selectedTask}
           allTasks={tasks}
           dependencies={dependencies}
+          projects={projects}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={(patch) => updateTask(selectedTask.id, patch)}
           onDelete={() => deleteTask(selectedTask.id)}

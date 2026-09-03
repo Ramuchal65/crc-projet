@@ -138,7 +138,10 @@ export default function ListView({
                 );
               }
               return (
-                <span className="text-xs truncate text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5 w-fit">
+                <span
+                  className="text-xs truncate text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5 w-fit"
+                  title="Sans échéance : n'apparaîtra pas dans le Gantt"
+                >
                   Pas d'échéance
                 </span>
               );
