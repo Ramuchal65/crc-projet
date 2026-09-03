@@ -1,25 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2 } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL } from "@/lib/types";
+import { X, Trash2, Link2, ChevronRight } from "lucide-react";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
 
 export default function TaskDrawer({
   task,
+  allTasks,
+  dependencies,
   onClose,
   onUpdate,
   onDelete,
+  onAddDependency,
+  onRemoveDependency,
 }: {
   task: Task;
+  allTasks: Task[];
+  dependencies: TaskDependency[];
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => void;
   onDelete: () => void;
+  onAddDependency: (dependsOnTaskId: string) => void;
+  onRemoveDependency: (dependencyId: string) => void;
 }) {
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
   const [responsible, setResponsible] = useState(task.responsible_name_raw ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [depPick, setDepPick] = useState("");
 
   useEffect(() => {
     setTitle(task.title);
@@ -40,6 +49,12 @@ export default function TaskDrawer({
       window.removeEventListener("keydown", handleEsc);
     };
   }, []);
+
+  const dependsOn = dependencies.filter((d) => d.task_id === task.id);
+  const dependents = dependencies.filter((d) => d.depends_on_task_id === task.id);
+  const availableToAdd = allTasks.filter(
+    (t) => t.id !== task.id && !dependsOn.some((d) => d.depends_on_task_id === t.id)
+  );
 
   return (
     <div className="fixed inset-0 z-50">
@@ -164,6 +179,88 @@ export default function TaskDrawer({
                 className="w-full border border-line rounded-md px-2 py-2 bg-line/20 text-sm text-ink/50"
               />
             </div>
+          </div>
+
+          <div className="pt-4 border-t border-line space-y-4">
+            <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink/50">
+              <Link2 size={12} />
+              Dépendances
+            </div>
+
+            {dependsOn.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-ink/40">Cette tâche dépend de :</p>
+                {dependsOn.map((d) => {
+                  const dep = allTasks.find((t) => t.id === d.depends_on_task_id);
+                  if (!dep) return null;
+                  const done = dep.status === "fait";
+                  return (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between gap-2 text-sm border border-line rounded-md px-2.5 py-1.5 bg-white"
+                    >
+                      <span className={`truncate flex items-center gap-1.5 ${done ? "text-basse" : "text-critique"}`}>
+                        <ChevronRight size={12} className="shrink-0" />
+                        {dep.title}
+                        <span className="text-[10px] uppercase tracking-wide shrink-0">
+                          {done ? "fait" : STATUS_LABEL[dep.status]}
+                        </span>
+                      </span>
+                      <button
+                        onClick={() => onRemoveDependency(d.id)}
+                        className="text-ink/30 hover:text-critique shrink-0"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {dependents.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-ink/40">Bloque en retour :</p>
+                {dependents.map((d) => {
+                  const dep = allTasks.find((t) => t.id === d.task_id);
+                  if (!dep) return null;
+                  return (
+                    <div key={d.id} className="text-sm text-ink/60 px-2.5 py-1">
+                      {dep.title}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {availableToAdd.length > 0 && (
+              <div className="flex items-center gap-2">
+                <select
+                  value={depPick}
+                  onChange={(e) => setDepPick(e.target.value)}
+                  className="flex-1 border border-line rounded-md px-2 py-1.5 bg-white text-sm"
+                >
+                  <option value="">Ajouter une dépendance...</option>
+                  {availableToAdd.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => {
+                    if (depPick) {
+                      onAddDependency(depPick);
+                      setDepPick("");
+                    }
+                  }}
+                  disabled={!depPick}
+                  className="text-sm bg-accent text-white px-3 py-1.5 rounded-lg disabled:opacity-30"
+                >
+                  Ajouter
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="pt-4 border-t border-line">

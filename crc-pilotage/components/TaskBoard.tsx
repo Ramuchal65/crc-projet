@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status } from "@/lib/types";
+import { Task, Priority, Status, TaskDependency } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
@@ -11,12 +11,15 @@ import QuickAdd from "./QuickAdd";
 
 export default function TaskBoard({
   initialTasks,
+  initialDependencies,
   projectId,
 }: {
   initialTasks: Task[];
+  initialDependencies: TaskDependency[];
   projectId: string;
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [dependencies, setDependencies] = useState<TaskDependency[]>(initialDependencies);
   const [view, setView] = useState<"kanban" | "liste">("kanban");
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "toutes">("toutes");
@@ -25,6 +28,45 @@ export default function TaskBoard({
   const [quickAddStatus, setQuickAddStatus] = useState<Status | null>(null);
 
   const supabase = createClient();
+
+  const taskById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
+
+  const blockedTaskIds = useMemo(() => {
+    const set = new Set<string>();
+    dependencies.forEach((d) => {
+      const dep = taskById.get(d.depends_on_task_id);
+      if (dep && dep.status !== "fait") set.add(d.task_id);
+    });
+    return set;
+  }, [dependencies, taskById]);
+
+  async function addDependency(taskId: string, dependsOnTaskId: string) {
+    // évite l'auto-référence et le cycle direct A→B→A
+    if (taskId === dependsOnTaskId) return;
+    const reverseExists = dependencies.some(
+      (d) => d.task_id === dependsOnTaskId && d.depends_on_task_id === taskId
+    );
+    if (reverseExists) {
+      alert("Impossible : cette tâche dépend déjà de celle-ci (cycle direct).");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("task_dependencies")
+      .insert({ task_id: taskId, depends_on_task_id: dependsOnTaskId })
+      .select()
+      .single();
+    if (error) {
+      console.error("Échec ajout dépendance :", error.message);
+      return;
+    }
+    setDependencies((prev) => [...prev, data as TaskDependency]);
+  }
+
+  async function removeDependency(dependencyId: string) {
+    setDependencies((prev) => prev.filter((d) => d.id !== dependencyId));
+    const { error } = await supabase.from("task_dependencies").delete().eq("id", dependencyId);
+    if (error) console.error("Échec suppression dépendance :", error.message);
+  }
 
   const responsables = useMemo(() => {
     const set = new Set<string>();
@@ -51,6 +93,12 @@ export default function TaskBoard({
   }, [tasks, priorityFilter, responsableFilter, search]);
 
   async function updateTask(id: string, patch: Partial<Task>) {
+    if (patch.status === "fait" && blockedTaskIds.has(id)) {
+      const proceed = window.confirm(
+        "Cette tâche est encore bloquée par une dépendance non terminée. La marquer comme faite quand même ?"
+      );
+      if (!proceed) return;
+    }
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     const { error } = await supabase
       .from("tasks")
@@ -92,6 +140,7 @@ export default function TaskBoard({
 
   async function deleteTask(id: string) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setDependencies((prev) => prev.filter((d) => d.task_id !== id && d.depends_on_task_id !== id));
     setSelectedTaskId(null);
     const { error } = await supabase.from("tasks").delete().eq("id", id);
     if (error) console.error("Échec de la suppression :", error.message);
@@ -116,13 +165,13 @@ export default function TaskBoard({
                 placeholder="Rechercher..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="border border-line rounded-md pl-8 pr-3 py-1.5 bg-white w-44"
+                className="border border-line rounded-lg pl-8 pr-3 py-1.5 bg-white w-44"
               />
             </div>
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as Priority | "toutes")}
-              className="border border-line rounded-md px-2 py-1.5 bg-white"
+              className="border border-line rounded-lg px-2 py-1.5 bg-white"
             >
               <option value="toutes">Toute priorité</option>
               <option value="haute">Haute</option>
@@ -132,7 +181,7 @@ export default function TaskBoard({
             <select
               value={responsableFilter}
               onChange={(e) => setResponsableFilter(e.target.value)}
-              className="border border-line rounded-md px-2 py-1.5 bg-white max-w-[150px]"
+              className="border border-line rounded-lg px-2 py-1.5 bg-white max-w-[150px]"
             >
               <option value="tous">Tout responsable</option>
               {responsables.map((r) => (
@@ -142,11 +191,11 @@ export default function TaskBoard({
               ))}
             </select>
 
-            <div className="flex items-center gap-0.5 border border-line rounded-md p-0.5 bg-white">
+            <div className="flex items-center gap-0.5 border border-line rounded-lg p-0.5 bg-white">
               <button
                 onClick={() => setView("kanban")}
                 className={`px-3 py-1.5 rounded text-sm ${
-                  view === "kanban" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+                  view === "kanban" ? "bg-accent text-white hover:bg-accent/90 transition-colors" : "text-ink/60 hover:text-ink"
                 }`}
               >
                 Kanban
@@ -154,7 +203,7 @@ export default function TaskBoard({
               <button
                 onClick={() => setView("liste")}
                 className={`px-3 py-1.5 rounded text-sm ${
-                  view === "liste" ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+                  view === "liste" ? "bg-accent text-white hover:bg-accent/90 transition-colors" : "text-ink/60 hover:text-ink"
                 }`}
               >
                 Liste
@@ -166,6 +215,7 @@ export default function TaskBoard({
         {view === "kanban" ? (
           <KanbanView
             tasks={filteredTasks}
+            blockedTaskIds={blockedTaskIds}
             onStatusChange={(id, status) => updateTask(id, { status })}
             onReorder={reorderColumn}
             onSelect={setSelectedTaskId}
@@ -174,7 +224,12 @@ export default function TaskBoard({
         ) : (
           <>
             <QuickAdd onCreate={(title) => createTask(title)} />
-            <ListView tasks={filteredTasks} onUpdate={updateTask} onSelect={setSelectedTaskId} />
+            <ListView
+              tasks={filteredTasks}
+              blockedTaskIds={blockedTaskIds}
+              onUpdate={updateTask}
+              onSelect={setSelectedTaskId}
+            />
           </>
         )}
       </div>
@@ -182,9 +237,13 @@ export default function TaskBoard({
       {selectedTask && (
         <TaskDrawer
           task={selectedTask}
+          allTasks={tasks}
+          dependencies={dependencies}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={(patch) => updateTask(selectedTask.id, patch)}
           onDelete={() => deleteTask(selectedTask.id)}
+          onAddDependency={(dependsOnId) => addDependency(selectedTask.id, dependsOnId)}
+          onRemoveDependency={removeDependency}
         />
       )}
     </>

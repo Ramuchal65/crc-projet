@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL } from "@/lib/types";
 import { initials, avatarColor, isOverdue } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -14,12 +14,14 @@ const COLUMN_ACCENT: Record<Status, string> = {
 
 export default function KanbanView({
   tasks,
+  blockedTaskIds,
   onStatusChange,
   onReorder,
   onSelect,
   onQuickAdd,
 }: {
   tasks: Task[];
+  blockedTaskIds: Set<string>;
   onStatusChange: (id: string, status: Status) => void;
   onReorder: (status: Status, orderedIds: string[]) => void;
   onSelect: (id: string) => void;
@@ -112,7 +114,7 @@ export default function KanbanView({
                 }}
                 onBlur={() => submitDraft(col.status)}
                 placeholder="Titre, puis Entrée..."
-                className="w-full border border-ink/20 rounded-md px-2.5 py-2 text-sm bg-white shadow-sm"
+                className="w-full border border-accent/40 rounded-lg px-2.5 py-2 text-sm bg-white shadow-sm"
               />
             </div>
           )}
@@ -120,6 +122,7 @@ export default function KanbanView({
           <div className="space-y-2">
             {col.items.map((task) => {
               const overdue = isOverdue(task.due_date) && task.status !== "fait";
+              const blocked = blockedTaskIds.has(task.id);
               const firstResponsable = task.responsible_name_raw?.split(",")[0]?.trim();
               return (
                 <div
@@ -134,9 +137,9 @@ export default function KanbanView({
                     handleDrop(col.status, task.id);
                   }}
                   onClick={() => onSelect(task.id)}
-                  className={`group border border-line rounded-lg p-3 bg-white cursor-pointer transition-all hover:border-ink/25 hover:shadow-sm ${
-                    dragId === task.id ? "opacity-30" : ""
-                  }`}
+                  className={`group border rounded-lg p-3 bg-white cursor-pointer transition-all hover:border-accent/40 hover:shadow-sm ${
+                    blocked ? "border-critique/25" : "border-line"
+                  } ${dragId === task.id ? "opacity-30" : ""}`}
                 >
                   <div className="flex items-start gap-2">
                     <GripVertical
@@ -146,6 +149,11 @@ export default function KanbanView({
                     <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">
                       {task.title}
                     </p>
+                    {blocked && (
+                      <span title="Bloquée par une dépendance">
+                        <Lock size={12} className="text-critique shrink-0 mt-1" />
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between mt-3 pl-4">

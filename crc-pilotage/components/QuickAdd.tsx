@@ -17,7 +17,7 @@ export default function QuickAdd({ onCreate }: { onCreate: (title: string) => vo
     return (
       <button
         onClick={() => setOpen(true)}
-        className="text-sm text-ink/50 hover:text-ink border border-dashed border-line rounded-md px-3 py-2 w-full text-left"
+        className="text-sm text-ink/50 hover:text-ink border border-dashed border-line rounded-lg px-3 py-2 w-full text-left"
       >
         + Nouvelle tâche
       </button>
@@ -42,11 +42,11 @@ export default function QuickAdd({ onCreate }: { onCreate: (title: string) => vo
         onBlur={() => {
           if (!value.trim()) setOpen(false);
         }}
-        className="flex-1 border border-line rounded-md px-3 py-2 text-sm bg-white"
+        className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-white"
       />
       <button
         onClick={submit}
-        className="bg-ink text-paper px-3 py-2 rounded-md text-sm"
+        className="bg-accent text-white hover:bg-accent/90 transition-colors px-3 py-2 rounded-lg text-sm"
       >
         Ajouter
       </button>

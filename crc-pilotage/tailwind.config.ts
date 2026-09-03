@@ -13,9 +13,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#1C1E22",
+        ink: "#242832",
         paper: "#F7F6F3",
-        line: "#DCD9D2",
+        line: "#DDD9D2",
+        sidebar: "#1E2430",
+        accent: "#3E6FA8",
+        accentSoft: "#EAF1F8",
         haute: "#B54834",
         moyenne: "#B08A2E",
         basse: "#5B7A63",

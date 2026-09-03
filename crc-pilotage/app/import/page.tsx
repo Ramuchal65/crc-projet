@@ -182,7 +182,7 @@ export default function ImportPage() {
       {!extraction && (
         <>
           <div className="flex items-center gap-3">
-            <label className="text-sm border border-line rounded-md px-3 py-2 bg-white cursor-pointer hover:bg-line/20 transition-colors">
+            <label className="text-sm border border-line rounded-lg px-3 py-2 bg-white cursor-pointer hover:bg-line/20 transition-colors">
               {extracting ? "Extraction en cours..." : "Importer un fichier (.txt, .docx, .pdf)"}
               <input
                 type="file"
@@ -195,7 +195,7 @@ export default function ImportPage() {
             <span className="text-xs text-ink/40">ou colle le texte ci-dessous</span>
           </div>
           <textarea
-            className="w-full h-72 border border-line rounded-md p-4 text-sm font-mono bg-white"
+            className="w-full h-72 border border-line rounded-lg p-4 text-sm font-mono bg-white"
             placeholder="Colle ici le texte du compte-rendu, ou importe un fichier ci-dessus..."
             value={rawText}
             onChange={(e) => setRawText(e.target.value)}
@@ -203,7 +203,7 @@ export default function ImportPage() {
           <button
             onClick={handleAnalyze}
             disabled={loading || rawText.trim().length < 20}
-            className="bg-ink text-paper px-4 py-2 rounded-md text-sm disabled:opacity-40"
+            className="bg-accent text-white hover:bg-accent/90 transition-colors px-4 py-2 rounded-lg text-sm disabled:opacity-40"
           >
             {loading ? "Analyse en cours..." : "Analyser le CR"}
           </button>
@@ -211,7 +211,7 @@ export default function ImportPage() {
       )}
 
       {error && (
-        <p className="text-critique text-sm border border-critique/30 bg-critique/5 rounded-md p-3">
+        <p className="text-critique text-sm border border-critique/30 bg-critique/5 rounded-lg p-3">
           {error}
         </p>
       )}
@@ -229,7 +229,7 @@ export default function ImportPage() {
               Tâches ({extraction.taches.length})
             </h2>
             {extraction.taches.map((t, i) => (
-              <div key={i} className="border border-line rounded-md p-4 bg-white space-y-2">
+              <div key={i} className="border border-line rounded-lg p-4 bg-white space-y-2">
                 <div className="flex items-start gap-2">
                   <input
                     className="flex-1 font-medium border-b border-transparent hover:border-line focus:border-ink outline-none bg-transparent"
@@ -298,7 +298,7 @@ export default function ImportPage() {
               {extraction.risques.map((r, i) => (
                 <div
                   key={i}
-                  className={`border rounded-md p-3 text-sm bg-white border-${r.niveau}/30`}
+                  className={`border rounded-lg p-3 text-sm bg-white border-${r.niveau}/30`}
                 >
                   <span className={`text-${r.niveau} font-medium`}>
                     {r.niveau.toUpperCase()}
@@ -313,7 +313,7 @@ export default function ImportPage() {
             <button
               onClick={handleConfirm}
               disabled={saving}
-              className="bg-ink text-paper px-4 py-2 rounded-md text-sm disabled:opacity-40"
+              className="bg-accent text-white hover:bg-accent/90 transition-colors px-4 py-2 rounded-lg text-sm disabled:opacity-40"
             >
               {saving ? "Enregistrement..." : "Valider et ajouter au pilotage"}
             </button>

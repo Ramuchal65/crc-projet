@@ -18,7 +18,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-60 shrink-0 bg-ink text-paper h-screen sticky top-0 flex flex-col">
+    <aside className="w-60 shrink-0 bg-sidebar text-paper h-screen sticky top-0 flex flex-col">
       <div className="px-5 py-5 flex items-baseline gap-2">
         <span className="font-mono text-xs tracking-widest text-paper/50">CRC</span>
         <span className="font-medium">Pilotage</span>
@@ -33,7 +33,7 @@ export default function Sidebar() {
               href={href}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                 active
-                  ? "bg-paper/10 text-paper"
+                  ? "bg-accent text-white"
                   : "text-paper/60 hover:text-paper hover:bg-paper/5"
               }`}
             >

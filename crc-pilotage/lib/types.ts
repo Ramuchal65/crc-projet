@@ -34,3 +34,9 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
 };
 
 export const PRIORITY_ORDER: Priority[] = ["haute", "moyenne", "basse"];
+
+export interface TaskDependency {
+  id: string;
+  task_id: string;
+  depends_on_task_id: string;
+}

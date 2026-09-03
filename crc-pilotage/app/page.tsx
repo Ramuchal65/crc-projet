@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import TaskBoard from "@/components/TaskBoard";
-import { Task } from "@/lib/types";
+import { Task, TaskDependency } from "@/lib/types";
 
 export default async function TasksPage() {
   const supabase = createClient();
@@ -30,5 +30,16 @@ export default async function TasksPage() {
     return <p className="text-critique text-sm">Erreur de chargement : {error.message}</p>;
   }
 
-  return <TaskBoard initialTasks={(tasks as Task[]) ?? []} projectId={project.id} />;
+  const taskIds = (tasks ?? []).map((t) => t.id);
+  const { data: dependencies } = taskIds.length
+    ? await supabase.from("task_dependencies").select("*").in("task_id", taskIds)
+    : { data: [] };
+
+  return (
+    <TaskBoard
+      initialTasks={(tasks as Task[]) ?? []}
+      initialDependencies={(dependencies as TaskDependency[]) ?? []}
+      projectId={project.id}
+    />
+  );
 }

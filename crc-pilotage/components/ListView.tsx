@@ -11,16 +11,18 @@ import {
   PRIORITY_ORDER,
 } from "@/lib/types";
 import { initials, avatarColor, isOverdue } from "@/lib/avatar";
-import { ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUp, ArrowDown, Lock } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
 
 export default function ListView({
   tasks,
+  blockedTaskIds,
   onUpdate,
   onSelect,
 }: {
   tasks: Task[];
+  blockedTaskIds: Set<string>;
   onUpdate: (id: string, patch: Partial<Task>) => void;
   onSelect: (id: string) => void;
 }) {
@@ -75,8 +77,11 @@ export default function ListView({
           >
             <button
               onClick={() => onSelect(task.id)}
-              className="text-left truncate hover:underline underline-offset-4"
+              className="text-left truncate hover:underline underline-offset-4 flex items-center gap-1.5"
             >
+              {blockedTaskIds.has(task.id) && (
+                <Lock size={11} className="text-critique shrink-0" />
+              )}
               {task.title}
             </button>
             <div className="flex items-center gap-1.5 min-w-0">
