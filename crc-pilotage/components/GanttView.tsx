@@ -296,7 +296,7 @@ export default function GanttView({
               </div>
             </div>
 
-            <div className="relative" style={{ height: bars.length * ROW_HEIGHT }}>
+            <div className="relative" style={{ height: bars.length * ROW_HEIGHT, width: timelineWidth }}>
               {/* repères verticaux par jour (week-ends estompés) */}
               {days.map((d, i) => (
                 <div
@@ -312,10 +312,11 @@ export default function GanttView({
               {bars.map(({ task, rowIndex }) => (
                 <div
                   key={rowIndex}
-                  className="absolute left-0 right-0 border-b border-line/60"
+                  className="absolute left-0 border-b border-line/60"
                   style={{
                     top: rowIndex * ROW_HEIGHT,
                     height: ROW_HEIGHT,
+                    width: timelineWidth,
                     backgroundColor: showProjectBadge
                       ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "1A")
                       : undefined,
