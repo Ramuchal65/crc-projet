@@ -38,6 +38,24 @@ export function projectColor(id: string): string {
   return PROJECT_COLORS[Math.abs(hash) % PROJECT_COLORS.length];
 }
 
+// Palette proposée au choix lors de la création/édition d'un projet
+export const PROJECT_COLOR_PRESETS = [
+  "#3E6FA8", // bleu
+  "#6B5C8A", // prune
+  "#4B6E5C", // sapin
+  "#8A6B44", // ambre
+  "#5C6B8A", // ardoise
+  "#8A5A44", // terre
+  "#B54834", // brique
+  "#2E7D6B", // émeraude
+];
+
+/** Ajoute une transparence à une couleur hex (#RRGGBB) pour une teinte légère de fond. */
+export function withAlpha(hex: string, alphaHex: string): string {
+  if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return hex;
+  return `${hex}${alphaHex}`;
+}
+
 export function isOverdue(dueDate: string | null): boolean {
   if (!dueDate) return false;
   return new Date(dueDate) < new Date(new Date().toDateString());

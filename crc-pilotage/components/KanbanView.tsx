@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency, Project } from "@/lib/types";
-import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
+import { initials, avatarColor, isOverdue, dueDateLabel, withAlpha } from "@/lib/avatar";
 import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
@@ -222,27 +222,35 @@ export default function KanbanView({
                     onClick={() => onSelect(task.id)}
                     onMouseEnter={() => hasLinks(task.id) && setHoverId(task.id)}
                     onMouseLeave={() => setHoverId(null)}
-                    className={`group relative border rounded-lg p-3 bg-white cursor-pointer transition-all overflow-hidden ${
+                    title={
+                      showProjectBadge
+                        ? `Projet : ${projectById.get(task.project_id)?.name ?? "?"}`
+                        : undefined
+                    }
+                    className={`group relative border rounded-lg p-3 cursor-pointer transition-all overflow-hidden ${
                       linkMode
                         ? "ring-2 ring-accent border-accent shadow-sm scale-[1.015] cursor-copy"
                         : `hover:border-accent/40 hover:shadow-sm ${relationRing}`
                     } ${blocked ? "border-critique/25" : linkMode || relationRing ? "" : "border-line"} ${
                       dragId === task.id ? "opacity-30" : isDimmed ? "opacity-35" : ""
                     }`}
+                    style={
+                      showProjectBadge
+                        ? {
+                            backgroundColor: withAlpha(
+                              projectById.get(task.project_id)?.color ?? "#3E6FA8",
+                              "14"
+                            ),
+                            borderLeft: `3px solid ${projectById.get(task.project_id)?.color ?? "#3E6FA8"}`,
+                          }
+                        : { backgroundColor: "white" }
+                    }
                   >
                     {linkMode && (
                       <div className="flex items-center gap-1 text-[11px] text-accent font-medium mb-1.5">
                         <Link2 size={11} />
                         Relâcher pour créer une dépendance
                       </div>
-                    )}
-                    {showProjectBadge && (
-                      <span
-                        className="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded mb-1.5 text-white"
-                        style={{ backgroundColor: projectColor(task.project_id) }}
-                      >
-                        {projectById.get(task.project_id)?.name ?? "?"}
-                      </span>
                     )}
                     <div className="flex items-start gap-2">
                       <GripVertical

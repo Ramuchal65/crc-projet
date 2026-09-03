@@ -72,10 +72,10 @@ export default function TaskBoard({
     if (error) console.error("Échec suppression dépendance :", error.message);
   }
 
-  async function createProject(name: string) {
+  async function createProject(name: string, color: string) {
     const { data, error } = await supabase
       .from("projects")
-      .insert({ name })
+      .insert({ name, color })
       .select()
       .single();
     if (error) {
@@ -84,6 +84,12 @@ export default function TaskBoard({
     }
     setProjects((prev) => [...prev, data as Project]);
     setSelectedProjectId((data as Project).id);
+  }
+
+  async function updateProject(id: string, patch: { name?: string; color?: string }) {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    const { error } = await supabase.from("projects").update(patch).eq("id", id);
+    if (error) console.error("Échec mise à jour projet :", error.message);
   }
 
   const responsables = useMemo(() => {
@@ -208,6 +214,7 @@ export default function TaskBoard({
               selectedId={selectedProjectId}
               onSelect={setSelectedProjectId}
               onCreate={createProject}
+              onUpdate={updateProject}
             />
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/30" />

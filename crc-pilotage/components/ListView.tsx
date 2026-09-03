@@ -11,7 +11,7 @@ import {
   PRIORITY_ORDER,
   Project,
 } from "@/lib/types";
-import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
+import { initials, avatarColor, isOverdue, dueDateLabel, withAlpha } from "@/lib/avatar";
 import { ArrowUp, ArrowDown, Lock, CalendarOff } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
@@ -78,6 +78,12 @@ export default function ListView({
         return (
           <div
             key={task.id}
+            title={showProjectBadge ? `Projet : ${projectById.get(task.project_id)?.name ?? "?"}` : undefined}
+            style={
+              showProjectBadge
+                ? { backgroundColor: withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "10") }
+                : undefined
+            }
             className="grid grid-cols-[1fr_170px_110px_120px_110px] gap-2 px-4 py-2.5 items-center border-b border-line last:border-0 hover:bg-paper/60 text-sm transition-colors"
           >
             <button
@@ -86,14 +92,6 @@ export default function ListView({
             >
               {blockedTaskIds.has(task.id) && (
                 <Lock size={11} className="text-critique shrink-0" />
-              )}
-              {showProjectBadge && (
-                <span
-                  className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded text-white"
-                  style={{ backgroundColor: projectColor(task.project_id) }}
-                >
-                  {projectById.get(task.project_id)?.name ?? "?"}
-                </span>
               )}
               <span className="truncate">{task.title}</span>
             </button>

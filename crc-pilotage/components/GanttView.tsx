@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Task, TaskDependency, Project, PRIORITY_LABEL } from "@/lib/types";
-import { projectColor } from "@/lib/avatar";
+import { projectColor, withAlpha } from "@/lib/avatar";
 import ProjectSelector from "./ProjectSelector";
 import { createClient } from "@/lib/supabase/client";
 
@@ -48,14 +48,20 @@ export default function GanttView({
   const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const supabase = createClient();
 
-  async function createProject(name: string) {
-    const { data, error } = await supabase.from("projects").insert({ name }).select().single();
+  async function createProject(name: string, color: string) {
+    const { data, error } = await supabase.from("projects").insert({ name, color }).select().single();
     if (error) {
       console.error("Échec création projet :", error.message);
       return;
     }
     setProjects((prev) => [...prev, data as Project]);
     setSelectedProjectId((data as Project).id);
+  }
+
+  async function updateProject(id: string, patch: { name?: string; color?: string }) {
+    setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    const { error } = await supabase.from("projects").update(patch).eq("id", id);
+    if (error) console.error("Échec mise à jour projet :", error.message);
   }
 
   const showProjectBadge = selectedProjectId === "all" && projects.length > 1;
@@ -158,6 +164,7 @@ export default function GanttView({
             selectedId={selectedProjectId}
             onSelect={setSelectedProjectId}
             onCreate={createProject}
+            onUpdate={updateProject}
           />
         </div>
         <div className="text-center py-16 text-ink/50 space-y-2">
@@ -183,10 +190,11 @@ export default function GanttView({
           selectedId={selectedProjectId}
           onSelect={setSelectedProjectId}
           onCreate={createProject}
+          onUpdate={updateProject}
         />
       </div>
 
-      <div className="flex items-center gap-4 text-[11px] text-ink/40 px-1">
+      <div className="flex items-center gap-4 text-[11px] text-ink/40 px-1 flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-haute" /> Priorité haute
         </span>
@@ -196,6 +204,16 @@ export default function GanttView({
         <span className="flex items-center gap-1.5">
           <span className="w-3 border-t border-dashed border-ink/30" /> Dépendance
         </span>
+        {showProjectBadge &&
+          projects.map((p) => (
+            <span key={p.id} className="flex items-center gap-1.5">
+              <span
+                className="w-2.5 h-2.5 rounded-sm"
+                style={{ backgroundColor: projectColor(p.id) }}
+              />
+              {p.name}
+            </span>
+          ))}
       </div>
 
       <div className="border border-line rounded-lg bg-white overflow-hidden">
@@ -208,16 +226,24 @@ export default function GanttView({
                 key={task.id}
                 onMouseEnter={() => setHoverId(task.id)}
                 onMouseLeave={() => setHoverId(null)}
+                style={{
+                  height: ROW_HEIGHT,
+                  backgroundColor:
+                    hoverId === task.id
+                      ? undefined
+                      : showProjectBadge
+                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "0C")
+                      : undefined,
+                }}
                 className={`flex items-center gap-1.5 px-3 text-xs truncate border-b border-line/60 transition-colors ${
                   hoverId === task.id ? "bg-accentSoft" : ""
                 }`}
-                style={{ height: ROW_HEIGHT }}
                 title={task.title}
               >
                 {showProjectBadge && (
                   <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: projectColor(task.project_id) }}
+                    style={{ backgroundColor: projectById.get(task.project_id)?.color ?? "#3E6FA8" }}
                     title={projectById.get(task.project_id)?.name}
                   />
                 )}
@@ -243,11 +269,17 @@ export default function GanttView({
 
             <div className="relative" style={{ height: bars.length * ROW_HEIGHT }}>
               {/* lignes de fond par ligne */}
-              {bars.map(({ rowIndex }) => (
+              {bars.map(({ task, rowIndex }) => (
                 <div
                   key={rowIndex}
                   className="absolute left-0 right-0 border-b border-line/60"
-                  style={{ top: (rowIndex + 1) * ROW_HEIGHT - 1 }}
+                  style={{
+                    top: rowIndex * ROW_HEIGHT,
+                    height: ROW_HEIGHT,
+                    backgroundColor: showProjectBadge
+                      ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "0C")
+                      : undefined,
+                  }}
                 />
               ))}
 
@@ -307,7 +339,9 @@ export default function GanttView({
                         dimmed ? "opacity-30" : ""
                       }`}
                       style={{ left: cx - 6, top: cy - 6 }}
-                      title={`${task.title} · ${PRIORITY_LABEL[task.priority]}`}
+                      title={`${task.title} · ${PRIORITY_LABEL[task.priority]}${
+                        showProjectBadge ? ` · ${projectById.get(task.project_id)?.name ?? ""}` : ""
+                      }`}
                     />
                   );
                 }
@@ -325,7 +359,9 @@ export default function GanttView({
                       width: Math.max(x2 - x1, 10),
                       height: ROW_HEIGHT - 16,
                     }}
-                    title={`${task.title} · ${PRIORITY_LABEL[task.priority]}`}
+                    title={`${task.title} · ${PRIORITY_LABEL[task.priority]}${
+                      showProjectBadge ? ` · ${projectById.get(task.project_id)?.name ?? ""}` : ""
+                    }`}
                   />
                 );
               })}
