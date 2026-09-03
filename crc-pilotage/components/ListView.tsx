@@ -10,7 +10,7 @@ import {
   PRIORITY_LABEL,
   PRIORITY_ORDER,
 } from "@/lib/types";
-import { initials, avatarColor, isOverdue } from "@/lib/avatar";
+import { initials, avatarColor, isOverdue, dueDateLabel } from "@/lib/avatar";
 import { ArrowUp, ArrowDown, Lock } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
@@ -115,9 +115,21 @@ export default function ListView({
                 <option key={s} value={s}>{STATUS_LABEL[s]}</option>
               ))}
             </select>
-            <span className={`text-xs truncate ${overdue ? "text-critique font-medium" : "text-ink/50"}`}>
-              {task.due_date_raw || "—"}
-            </span>
+            {(() => {
+              const due = dueDateLabel(task);
+              if (due.defined) {
+                return (
+                  <span className={`text-xs truncate ${overdue ? "text-critique font-medium" : "text-ink/50"}`}>
+                    {due.label}
+                  </span>
+                );
+              }
+              return (
+                <span className="text-xs truncate text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5 w-fit">
+                  Pas d'échéance
+                </span>
+              );
+            })()}
           </div>
         );
       })}

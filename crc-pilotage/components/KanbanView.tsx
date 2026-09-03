@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency } from "@/lib/types";
-import { initials, avatarColor, isOverdue } from "@/lib/avatar";
+import { initials, avatarColor, isOverdue, dueDateLabel } from "@/lib/avatar";
 import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
@@ -299,16 +299,27 @@ export default function KanbanView({
                             {initials(firstResponsable)}
                           </span>
                         )}
-                        {task.due_date_raw && (
-                          <span
-                            className={`flex items-center gap-1 text-[11px] ${
-                              overdue ? "text-critique font-medium" : "text-ink/40"
-                            }`}
-                          >
-                            <CalendarDays size={11} />
-                            {task.due_date_raw}
-                          </span>
-                        )}
+                        {(() => {
+                          const due = dueDateLabel(task);
+                          if (due.defined) {
+                            return (
+                              <span
+                                className={`flex items-center gap-1 text-[11px] ${
+                                  overdue ? "text-critique font-medium" : "text-ink/40"
+                                }`}
+                              >
+                                <CalendarDays size={11} />
+                                {due.label}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="flex items-center gap-1 text-[11px] text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5">
+                              <CalendarDays size={11} />
+                              Pas d'échéance
+                            </span>
+                          );
+                        })()}
                       </div>
                       <span className={`text-[11px] font-medium text-${task.priority} shrink-0`}>
                         {PRIORITY_LABEL[task.priority]}
