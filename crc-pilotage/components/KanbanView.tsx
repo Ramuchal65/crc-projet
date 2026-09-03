@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency, Project } from "@/lib/types";
 import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -322,6 +322,11 @@ export default function KanbanView({
                               >
                                 <CalendarDays size={11} />
                                 {due.label}
+                                {!due.inGantt && (
+                                  <span title="Date non confirmée : absente du Gantt tant qu'une échéance précise n'est pas définie">
+                                    <CalendarOff size={11} className="text-moyenne" />
+                                  </span>
+                                )}
                               </span>
                             );
                           }
@@ -330,7 +335,7 @@ export default function KanbanView({
                               className="flex items-center gap-1 text-[11px] text-moyenne bg-moyenne/10 rounded px-1.5 py-0.5"
                               title="Sans échéance : n'apparaîtra pas dans le Gantt"
                             >
-                              <CalendarDays size={11} />
+                              <CalendarOff size={11} />
                               Pas d'échéance
                             </span>
                           );

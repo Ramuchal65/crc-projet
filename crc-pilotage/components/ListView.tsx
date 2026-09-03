@@ -12,7 +12,7 @@ import {
   Project,
 } from "@/lib/types";
 import { initials, avatarColor, isOverdue, dueDateLabel, projectColor } from "@/lib/avatar";
-import { ArrowUp, ArrowDown, Lock } from "lucide-react";
+import { ArrowUp, ArrowDown, Lock, CalendarOff } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
 
@@ -132,8 +132,15 @@ export default function ListView({
               const due = dueDateLabel(task);
               if (due.defined) {
                 return (
-                  <span className={`text-xs truncate ${overdue ? "text-critique font-medium" : "text-ink/50"}`}>
+                  <span
+                    className={`text-xs truncate flex items-center gap-1 ${overdue ? "text-critique font-medium" : "text-ink/50"}`}
+                  >
                     {due.label}
+                    {!due.inGantt && (
+                      <span title="Date non confirmée : absente du Gantt tant qu'une échéance précise n'est pas définie">
+                        <CalendarOff size={11} className="text-moyenne shrink-0" />
+                      </span>
+                    )}
                   </span>
                 );
               }

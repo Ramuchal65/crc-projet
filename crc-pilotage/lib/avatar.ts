@@ -54,12 +54,16 @@ export function formatDueDate(dueDate: string | null): string {
  * Renvoie le libellé à afficher pour l'échéance d'une tâche, en priorisant
  * toujours la date normalisée (celle éditée dans le tiroir) sur le texte
  * brut extrait du CR — pour que l'édition se reflète visuellement.
+ *
+ * `inGantt` reflète uniquement due_date (le seul champ que le Gantt utilise),
+ * indépendamment de due_date_raw qui peut exister sans être normalisé.
  */
 export function dueDateLabel(task: { due_date: string | null; due_date_raw: string | null }): {
   label: string | null;
   defined: boolean;
+  inGantt: boolean;
 } {
-  if (task.due_date) return { label: formatDueDate(task.due_date), defined: true };
-  if (task.due_date_raw) return { label: task.due_date_raw, defined: true };
-  return { label: null, defined: false };
+  if (task.due_date) return { label: formatDueDate(task.due_date), defined: true, inGantt: true };
+  if (task.due_date_raw) return { label: task.due_date_raw, defined: true, inGantt: false };
+  return { label: null, defined: false, inGantt: false };
 }
