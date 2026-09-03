@@ -229,6 +229,17 @@ export default function TaskDrawer({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
+                Date de début
+              </label>
+              <input
+                type="date"
+                value={task.start_date ?? ""}
+                onChange={(e) => onUpdate({ start_date: e.target.value || null })}
+                className="w-full border border-line rounded-md px-2 py-2 bg-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
                 Échéance (normalisée)
               </label>
               <input
@@ -238,16 +249,16 @@ export default function TaskDrawer({
                 className="w-full border border-line rounded-md px-2 py-2 bg-white text-sm"
               />
             </div>
-            <div>
-              <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
-                Échéance (texte du CR)
-              </label>
-              <input
-                value={task.due_date_raw ?? ""}
-                disabled
-                className="w-full border border-line rounded-md px-2 py-2 bg-line/20 text-sm text-ink/50"
-              />
-            </div>
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
+              Échéance (texte du CR)
+            </label>
+            <input
+              value={task.due_date_raw ?? ""}
+              disabled
+              className="w-full border border-line rounded-md px-2 py-2 bg-line/20 text-sm text-ink/50"
+            />
           </div>
 
           <div className="space-y-2">

@@ -1,18 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Upload, GitBranch, GanttChartSquare, Users } from "lucide-react";
+import { LayoutGrid, Upload, GanttChartSquare, Users } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
   { href: "/import", label: "Importer un CR", icon: Upload },
+  { href: "/gantt", label: "Gantt", icon: GanttChartSquare },
 ];
 
-const SOON_ITEMS = [
-  { label: "Dépendances", icon: GitBranch },
-  { label: "Gantt", icon: GanttChartSquare },
-  { label: "Équipe", icon: Users },
-];
+const SOON_ITEMS = [{ label: "Équipe", icon: Users }];
 
 export default function Sidebar() {
   const pathname = usePathname();

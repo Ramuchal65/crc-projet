@@ -19,6 +19,7 @@ export interface Task {
   status: Status;
   due_date_raw: string | null;
   due_date: string | null;
+  start_date: string | null;
   order_index: number;
   subtasks: Subtask[];
   created_at: string;
