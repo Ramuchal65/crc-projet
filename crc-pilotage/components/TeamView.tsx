@@ -16,11 +16,13 @@ export default function TeamView({
   initialTeams,
   initialMemberships,
   currentEmployeeId,
+  isAdmin,
 }: {
   initialEmployees: Employee[];
   initialTeams: Team[];
   initialMemberships: Membership[];
   currentEmployeeId: string | null;
+  isAdmin: boolean;
 }) {
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [teams, setTeams] = useState<Team[]>(initialTeams);
@@ -106,16 +108,18 @@ export default function TeamView({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-medium">Équipes</h1>
-          <button
-            onClick={() => setAddingTeam(!addingTeam)}
-            className="flex items-center gap-1.5 border border-line rounded-lg px-3 py-1.5 text-sm hover:bg-paper transition-colors"
-          >
-            <Plus size={14} />
-            Nouvelle équipe
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setAddingTeam(!addingTeam)}
+              className="flex items-center gap-1.5 border border-line rounded-lg px-3 py-1.5 text-sm hover:bg-paper transition-colors"
+            >
+              <Plus size={14} />
+              Nouvelle équipe
+            </button>
+          )}
         </div>
 
-        {addingTeam && (
+        {addingTeam && isAdmin && (
           <div className="border border-line rounded-lg p-3 bg-white flex items-center gap-2 flex-wrap">
             <input
               value={teamName}
@@ -162,23 +166,27 @@ export default function TeamView({
             <h2 className="text-lg font-medium">Salariés</h2>
             <p className="text-sm text-ink/50">{employees.length} membre(s)</p>
           </div>
-          <button
-            onClick={() => setAddingEmployee(!addingEmployee)}
-            className="flex items-center gap-1.5 bg-accent text-white hover:bg-accent/90 transition-colors px-3 py-1.5 rounded-lg text-sm"
-          >
-            <UserPlus size={14} />
-            Ajouter
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setAddingEmployee(!addingEmployee)}
+              className="flex items-center gap-1.5 bg-accent text-white hover:bg-accent/90 transition-colors px-3 py-1.5 rounded-lg text-sm"
+            >
+              <UserPlus size={14} />
+              Ajouter
+            </button>
+          )}
         </div>
 
-        <p className="text-xs text-ink/40 bg-accentSoft border border-accent/20 rounded-lg px-3 py-2">
-          Ajouter un salarié ici ne l'inscrit pas automatiquement — ça réserve juste son nom et
-          son rôle. Il devra se connecter une première fois via la page de connexion avec la
-          même adresse e-mail pour activer son compte. N'oublie pas de cocher au moins une
-          équipe pour qu'il voie des projets.
-        </p>
+        {isAdmin && (
+          <p className="text-xs text-ink/40 bg-accentSoft border border-accent/20 rounded-lg px-3 py-2">
+            Ajouter un salarié ici ne l'inscrit pas automatiquement — ça réserve juste son nom et
+            son rôle. Il devra se connecter une première fois via la page de connexion avec la
+            même adresse e-mail pour activer son compte. N'oublie pas de cocher au moins une
+            équipe pour qu'il voie des projets.
+          </p>
+        )}
 
-        {addingEmployee && (
+        {addingEmployee && isAdmin && (
           <div className="border border-line rounded-lg p-3 bg-white space-y-2">
             <input
               value={name}
@@ -211,23 +219,39 @@ export default function TeamView({
               <input
                 defaultValue={emp.full_name}
                 onBlur={(e) => e.target.value !== emp.full_name && updateName(emp.id, e.target.value)}
-                className="text-sm bg-transparent outline-none border-b border-transparent hover:border-line focus:border-ink w-36 shrink-0"
+                disabled={!isAdmin && emp.id !== currentEmployeeId}
+                className="text-sm bg-transparent outline-none border-b border-transparent hover:border-line focus:border-ink w-36 shrink-0 disabled:text-ink/60"
               />
               <span className="text-xs text-ink/40 w-44 truncate shrink-0">{emp.email}</span>
-              <select
-                value={emp.role}
-                onChange={(e) => updateRole(emp.id, e.target.value as "admin" | "salarie")}
-                className="text-xs border border-line rounded px-1.5 py-1 bg-white shrink-0"
-              >
-                <option value="salarie">Salarié</option>
-                <option value="admin">Admin</option>
-              </select>
+              {isAdmin ? (
+                <select
+                  value={emp.role}
+                  onChange={(e) => updateRole(emp.id, e.target.value as "admin" | "salarie")}
+                  className="text-xs border border-line rounded px-1.5 py-1 bg-white shrink-0"
+                >
+                  <option value="salarie">Salarié</option>
+                  <option value="admin">Admin</option>
+                </select>
+              ) : (
+                <span className="text-xs text-ink/40 shrink-0 capitalize">{emp.role}</span>
+              )}
 
               <div className="flex items-center gap-1.5 flex-wrap">
                 {teams.map((t) => {
                   const active = memberships.some(
                     (m) => m.employee_id === emp.id && m.team_id === t.id
                   );
+                  if (!isAdmin) {
+                    return active ? (
+                      <span
+                        key={t.id}
+                        className="text-[11px] px-2 py-0.5 rounded-full text-white"
+                        style={{ backgroundColor: t.color }}
+                      >
+                        {t.name}
+                      </span>
+                    ) : null;
+                  }
                   return (
                     <button
                       key={t.id}
