@@ -8,6 +8,14 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/";
 
+  console.log("[auth/callback] reçu", {
+    hasCode: !!code,
+    hasTokenHash: !!tokenHash,
+    type,
+    next,
+    url: request.url,
+  });
+
   // Réponse construite dès le départ : les cookies de session seront
   // attachés directement dessus, sans dépendre de la fusion implicite
   // de next/headers (source du bug précédent : session créée côté
@@ -35,20 +43,27 @@ export async function GET(request: NextRequest) {
   let user = null;
   let authError: string | null = null;
 
-  if (code) {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) authError = error.message;
-    else user = data.user;
-  } else if (tokenHash && type) {
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: tokenHash,
-      type: type as any,
-    });
-    if (error) authError = error.message;
-    else user = data.user;
-  } else {
-    authError = "Lien de connexion invalide ou incomplet (ni code, ni token_hash reçu).";
+  try {
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) authError = error.message;
+      else user = data.user;
+    } else if (tokenHash && type) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: type as any,
+      });
+      if (error) authError = error.message;
+      else user = data.user;
+    } else {
+      authError = "Lien de connexion invalide ou incomplet (ni code, ni token_hash reçu).";
+    }
+  } catch (e: any) {
+    console.error("[auth/callback] exception pendant l'échange", e);
+    authError = `Exception : ${e?.message ?? String(e)}`;
   }
+
+  console.log("[auth/callback] résultat", { hasUser: !!user, authError });
 
   if (authError || !user) {
     return NextResponse.redirect(
@@ -59,26 +74,35 @@ export async function GET(request: NextRequest) {
   // Cherche une fiche salarié pré-créée avec cet email (par un admin
   // via la page Équipe), sinon une fiche déjà liée à ce compte, sinon
   // on en crée une nouvelle automatiquement.
-  const { data: existingByEmail } = await supabase
-    .from("employees")
-    .select("id, auth_user_id")
-    .eq("email", user.email)
-    .maybeSingle();
-
-  if (existingByEmail && !existingByEmail.auth_user_id) {
-    await supabase
+  try {
+    const { data: existingByEmail, error: lookupError } = await supabase
       .from("employees")
-      .update({ auth_user_id: user.id })
-      .eq("id", existingByEmail.id);
-  } else if (!existingByEmail) {
-    const fallbackName = user.email?.split("@")[0]?.replace(/[._]/g, " ") ?? "Nouveau salarié";
-    await supabase.from("employees").insert({
-      auth_user_id: user.id,
-      email: user.email,
-      full_name: fallbackName,
-      role: "salarie",
-    });
+      .select("id, auth_user_id")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (lookupError) console.error("[auth/callback] lookup employees error", lookupError);
+
+    if (existingByEmail && !existingByEmail.auth_user_id) {
+      const { error: updateError } = await supabase
+        .from("employees")
+        .update({ auth_user_id: user.id })
+        .eq("id", existingByEmail.id);
+      if (updateError) console.error("[auth/callback] update employees error", updateError);
+    } else if (!existingByEmail) {
+      const fallbackName = user.email?.split("@")[0]?.replace(/[._]/g, " ") ?? "Nouveau salarié";
+      const { error: insertError } = await supabase.from("employees").insert({
+        auth_user_id: user.id,
+        email: user.email,
+        full_name: fallbackName,
+        role: "salarie",
+      });
+      if (insertError) console.error("[auth/callback] insert employees error", insertError);
+    }
+  } catch (e) {
+    console.error("[auth/callback] exception liaison salarié", e);
   }
 
+  console.log("[auth/callback] succès, redirection vers", next);
   return response;
 }
