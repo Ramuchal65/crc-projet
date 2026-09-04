@@ -32,6 +32,7 @@ type Extraction = {
 export default function ImportPage() {
   const [rawText, setRawText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [extraction, setExtraction] = useState<Extraction | null>(null);
@@ -79,18 +80,40 @@ export default function ImportPage() {
     setLoading(true);
     setError(null);
     setExtraction(null);
+    setElapsed(0);
+
+    const timerId = setInterval(() => setElapsed((s) => s + 1), 1000);
+    const controller = new AbortController();
+    const abortId = setTimeout(() => controller.abort(), 55000); // marge sous les 60s serveur
+
     try {
       const res = await fetch("/api/parse-cr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText }),
+        signal: controller.signal,
       });
-      const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          `Réponse invalide du serveur (statut ${res.status}) — probablement un dépassement de délai.`
+        );
+      }
       if (!res.ok) throw new Error(data.error || "Échec de l'analyse.");
       setExtraction(data);
     } catch (e: any) {
-      setError(e.message);
+      if (e.name === "AbortError") {
+        setError(
+          "L'analyse a dépassé 55 secondes et a été interrompue. Réessaie avec un CR plus court, ou réessaie simplement — Gemini peut être temporairement lent."
+        );
+      } else {
+        setError(e.message);
+      }
     } finally {
+      clearInterval(timerId);
+      clearTimeout(abortId);
       setLoading(false);
     }
   }
@@ -237,7 +260,7 @@ export default function ImportPage() {
             disabled={loading || rawText.trim().length < 20}
             className="bg-accent text-white hover:bg-accent/90 transition-colors px-4 py-2 rounded-lg text-sm disabled:opacity-40"
           >
-            {loading ? "Analyse en cours..." : "Analyser le CR"}
+            {loading ? `Analyse en cours... (${elapsed}s)` : "Analyser le CR"}
           </button>
         </>
       )}
