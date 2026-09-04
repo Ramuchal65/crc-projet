@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -8,17 +8,38 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type");
   const next = searchParams.get("next") ?? "/";
 
-  const supabase = createClient();
+  // Réponse construite dès le départ : les cookies de session seront
+  // attachés directement dessus, sans dépendre de la fusion implicite
+  // de next/headers (source du bug précédent : session créée côté
+  // Supabase mais cookie jamais transmis au navigateur).
+  const response = NextResponse.redirect(`${origin}${next}`);
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: any) {
+          response.cookies.set({ name, value: "", ...options });
+        },
+      },
+    }
+  );
+
   let user = null;
   let authError: string | null = null;
 
   if (code) {
-    // Flux PKCE (lien avec ?code=...)
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) authError = error.message;
     else user = data.user;
   } else if (tokenHash && type) {
-    // Flux OTP classique (lien avec ?token_hash=...&type=magiclink)
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: type as any,
@@ -59,5 +80,5 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return response;
 }
