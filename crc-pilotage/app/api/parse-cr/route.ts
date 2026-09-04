@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Le traitement Gemini peut dépasser la limite par défaut de 10s des
+// fonctions serverless Vercel (offre gratuite) sur un CR long — on
+// l'étend explicitement (60s = max autorisé sur Hobby).
+export const maxDuration = 60;
+
 const EXTRACTION_PROMPT = `Tu extrais les actions et points de vigilance d'un compte-rendu de réunion français, quel que soit son niveau de structuration (tableau déjà formaté, paragraphes en texte libre, ou mélange des deux).
 
 RÈGLES STRICTES :
