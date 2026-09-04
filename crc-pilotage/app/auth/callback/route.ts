@@ -75,25 +75,28 @@ export async function GET(request: NextRequest) {
   // via la page Équipe), sinon une fiche déjà liée à ce compte, sinon
   // on en crée une nouvelle automatiquement.
   try {
-    // .ilike (insensible à la casse) plutôt que .eq : évite qu'un email
-    // saisi avec une casse différente lors de la pré-création (ex:
-    // Marie.Dupont@DPI.fr vs marie.dupont@dpi.fr) crée une fiche
-    // dupliquée sans les équipes déjà assignées.
-    const { data: existingByEmail, error: lookupError } = await supabase
+    // On récupère TOUTES les fiches correspondant à cet email (pas
+    // .maybeSingle, qui échouerait silencieusement s'il y en a déjà
+    // plusieurs) pour gérer proprement le cas d'un doublon existant.
+    const { data: matches, error: lookupError } = await supabase
       .from("employees")
       .select("id, auth_user_id")
-      .ilike("email", user.email ?? "")
-      .maybeSingle();
+      .ilike("email", user.email ?? "");
 
     if (lookupError) console.error("[auth/callback] lookup employees error", lookupError);
 
-    if (existingByEmail && !existingByEmail.auth_user_id) {
+    const alreadyLinked = matches?.find((m) => m.auth_user_id === user.id);
+    const unlinkedPlaceholder = matches?.find((m) => !m.auth_user_id);
+
+    if (alreadyLinked) {
+      // rien à faire, déjà lié (reconnexion normale)
+    } else if (unlinkedPlaceholder) {
       const { error: updateError } = await supabase
         .from("employees")
         .update({ auth_user_id: user.id })
-        .eq("id", existingByEmail.id);
+        .eq("id", unlinkedPlaceholder.id);
       if (updateError) console.error("[auth/callback] update employees error", updateError);
-    } else if (!existingByEmail) {
+    } else if (!matches || matches.length === 0) {
       const fallbackName = user.email?.split("@")[0]?.replace(/[._]/g, " ") ?? "Nouveau salarié";
       const { error: insertError } = await supabase.from("employees").insert({
         auth_user_id: user.id,
@@ -103,6 +106,9 @@ export async function GET(request: NextRequest) {
       });
       if (insertError) console.error("[auth/callback] insert employees error", insertError);
     }
+    // sinon : des fiches existent mais toutes déjà liées à d'autres
+    // comptes (cas anormal) — on ne crée rien de plus, à nettoyer
+    // manuellement sur /team.
   } catch (e) {
     console.error("[auth/callback] exception liaison salarié", e);
   }
