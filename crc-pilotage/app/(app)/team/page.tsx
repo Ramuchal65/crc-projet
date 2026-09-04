@@ -29,6 +29,7 @@ export default async function TeamPage() {
       initialTeams={(teams as Team[]) ?? []}
       initialMemberships={memberships ?? []}
       currentEmployeeId={currentEmployee?.id ?? null}
+      isAdmin={currentEmployee?.role === "admin"}
     />
   );
 }
