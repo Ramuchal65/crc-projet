@@ -75,10 +75,14 @@ export async function GET(request: NextRequest) {
   // via la page Équipe), sinon une fiche déjà liée à ce compte, sinon
   // on en crée une nouvelle automatiquement.
   try {
+    // .ilike (insensible à la casse) plutôt que .eq : évite qu'un email
+    // saisi avec une casse différente lors de la pré-création (ex:
+    // Marie.Dupont@DPI.fr vs marie.dupont@dpi.fr) crée une fiche
+    // dupliquée sans les équipes déjà assignées.
     const { data: existingByEmail, error: lookupError } = await supabase
       .from("employees")
       .select("id, auth_user_id")
-      .eq("email", user.email)
+      .ilike("email", user.email ?? "")
       .maybeSingle();
 
     if (lookupError) console.error("[auth/callback] lookup employees error", lookupError);
