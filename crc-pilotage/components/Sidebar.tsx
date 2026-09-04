@@ -1,23 +1,45 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { LayoutGrid, Upload, GanttChartSquare, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
   { href: "/import", label: "Importer un CR", icon: Upload },
   { href: "/gantt", label: "Gantt", icon: GanttChartSquare },
+  { href: "/team", label: "Équipe", icon: Users },
 ];
-
-const SOON_ITEMS = [{ label: "Équipe", icon: Users }];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [name, setName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("employees")
+        .select("full_name")
+        .eq("auth_user_id", user.id)
+        .maybeSingle();
+      setName(data?.full_name ?? user.email ?? null);
+    });
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="w-60 shrink-0 bg-sidebar text-paper h-screen sticky top-0 flex flex-col">
       <div className="px-5 py-5 flex items-baseline gap-2">
-        <span className="font-mono text-xs tracking-widest text-paper/50">CRC</span>
         <span className="font-medium">Pilotage</span>
       </div>
 
@@ -39,25 +61,17 @@ export default function Sidebar() {
             </a>
           );
         })}
-
-        <div className="pt-4 mt-4 border-t border-paper/10">
-          <p className="px-3 pb-1.5 text-[11px] uppercase tracking-wide text-paper/30">
-            À venir
-          </p>
-          {SOON_ITEMS.map(({ label, icon: Icon }) => (
-            <div
-              key={label}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-paper/30 cursor-not-allowed"
-            >
-              <Icon size={16} strokeWidth={2} />
-              {label}
-            </div>
-          ))}
-        </div>
       </nav>
 
-      <div className="px-5 py-4 text-xs text-paper/30 border-t border-paper/10">
-        13 salariés · CRC
+      <div className="px-5 py-4 border-t border-paper/10 space-y-2">
+        {name && <p className="text-xs text-paper/60 truncate">{name}</p>}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 text-xs text-paper/40 hover:text-paper transition-colors"
+        >
+          <LogOut size={12} />
+          Se déconnecter
+        </button>
       </div>
     </aside>
   );

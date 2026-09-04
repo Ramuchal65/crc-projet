@@ -1,11 +1,28 @@
 export type Priority = "haute" | "moyenne" | "basse";
 export type Status = "a_faire" | "en_cours" | "bloque" | "fait";
 
+export interface Employee {
+  id: string;
+  auth_user_id: string | null;
+  full_name: string;
+  email: string | null;
+  role: "admin" | "salarie";
+  created_at: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string | null;
   color: string;
+  team_id: string;
   created_at: string;
 }
 

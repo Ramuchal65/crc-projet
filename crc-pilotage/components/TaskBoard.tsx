@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status, TaskDependency, Project } from "@/lib/types";
+import { Task, Priority, Status, TaskDependency, Project, Team } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
@@ -15,10 +15,14 @@ export default function TaskBoard({
   initialTasks,
   initialDependencies,
   initialProjects,
+  currentEmployeeName,
+  myTeams,
 }: {
   initialTasks: Task[];
   initialDependencies: TaskDependency[];
   initialProjects: Project[];
+  currentEmployeeName: string;
+  myTeams: Team[];
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [dependencies, setDependencies] = useState<TaskDependency[]>(initialDependencies);
@@ -72,10 +76,10 @@ export default function TaskBoard({
     if (error) console.error("Échec suppression dépendance :", error.message);
   }
 
-  async function createProject(name: string, color: string) {
+  async function createProject(name: string, color: string, teamId: string) {
     const { data, error } = await supabase
       .from("projects")
-      .insert({ name, color })
+      .insert({ name, color, team_id: teamId })
       .select()
       .single();
     if (error) {
@@ -215,6 +219,7 @@ export default function TaskBoard({
               onSelect={setSelectedProjectId}
               onCreate={createProject}
               onUpdate={updateProject}
+              myTeams={myTeams}
             />
             <div className="relative">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/30" />
@@ -305,6 +310,7 @@ export default function TaskBoard({
           allTasks={tasks}
           dependencies={dependencies}
           projects={projects}
+          currentEmployeeName={currentEmployeeName}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={(patch) => updateTask(selectedTask.id, patch)}
           onDelete={() => deleteTask(selectedTask.id)}

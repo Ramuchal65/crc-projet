@@ -10,6 +10,7 @@ export default function TaskDrawer({
   allTasks,
   dependencies,
   projects,
+  currentEmployeeName,
   onClose,
   onUpdate,
   onDelete,
@@ -20,6 +21,7 @@ export default function TaskDrawer({
   allTasks: Task[];
   dependencies: TaskDependency[];
   projects: Project[];
+  currentEmployeeName: string;
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => void;
   onDelete: () => void;
@@ -36,7 +38,6 @@ export default function TaskDrawer({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
-  const [authorName, setAuthorName] = useState("");
   const [postingComment, setPostingComment] = useState(false);
 
   useEffect(() => {
@@ -57,10 +58,6 @@ export default function TaskDrawer({
       cancelAnimationFrame(id);
       window.removeEventListener("keydown", handleEsc);
     };
-  }, []);
-
-  useEffect(() => {
-    setAuthorName(localStorage.getItem("crc_author_name") ?? "");
   }, []);
 
   useEffect(() => {
@@ -85,14 +82,12 @@ export default function TaskDrawer({
 
   async function postComment() {
     const body = newComment.trim();
-    const author = authorName.trim();
-    if (!body || !author) return;
-    localStorage.setItem("crc_author_name", author);
+    if (!body) return;
     setPostingComment(true);
     const supabase = createClient();
     const { data, error } = await supabase
       .from("task_comments")
-      .insert({ task_id: task.id, author_name: author, body })
+      .insert({ task_id: task.id, author_name: currentEmployeeName, body })
       .select()
       .single();
     setPostingComment(false);
@@ -441,12 +436,6 @@ export default function TaskDrawer({
             )}
 
             <div className="space-y-1.5">
-              <input
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="Ton nom"
-                className="w-full border border-line rounded-md px-2.5 py-1.5 text-xs bg-white"
-              />
               <div className="flex items-end gap-2">
                 <textarea
                   value={newComment}
@@ -455,12 +444,12 @@ export default function TaskDrawer({
                     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) postComment();
                   }}
                   rows={2}
-                  placeholder="Écrire un commentaire... (Ctrl+Entrée pour envoyer)"
+                  placeholder={`Commenter en tant que ${currentEmployeeName}... (Ctrl+Entrée pour envoyer)`}
                   className="flex-1 border border-line rounded-md px-2.5 py-1.5 text-sm bg-white"
                 />
                 <button
                   onClick={postComment}
-                  disabled={postingComment || !newComment.trim() || !authorName.trim()}
+                  disabled={postingComment || !newComment.trim()}
                   className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm disabled:opacity-30 shrink-0"
                 >
                   Envoyer

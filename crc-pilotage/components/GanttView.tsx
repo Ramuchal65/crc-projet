@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Task, TaskDependency, Project, PRIORITY_LABEL } from "@/lib/types";
+import { Task, TaskDependency, Project, Team, PRIORITY_LABEL } from "@/lib/types";
 import { projectColor, withAlpha } from "@/lib/avatar";
 import ProjectSelector from "./ProjectSelector";
 import { createClient } from "@/lib/supabase/client";
@@ -38,18 +38,24 @@ export default function GanttView({
   tasks,
   dependencies,
   initialProjects,
+  myTeams,
 }: {
   tasks: Task[];
   dependencies: TaskDependency[];
   initialProjects: Project[];
+  myTeams: Team[];
 }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const supabase = createClient();
 
-  async function createProject(name: string, color: string) {
-    const { data, error } = await supabase.from("projects").insert({ name, color }).select().single();
+  async function createProject(name: string, color: string, teamId: string) {
+    const { data, error } = await supabase
+      .from("projects")
+      .insert({ name, color, team_id: teamId })
+      .select()
+      .single();
     if (error) {
       console.error("Échec création projet :", error.message);
       return;
@@ -179,6 +185,7 @@ export default function GanttView({
             onSelect={setSelectedProjectId}
             onCreate={createProject}
             onUpdate={updateProject}
+          myTeams={myTeams}
           />
         </div>
         <div className="text-center py-16 text-ink/50 space-y-2">
@@ -205,6 +212,7 @@ export default function GanttView({
           onSelect={setSelectedProjectId}
           onCreate={createProject}
           onUpdate={updateProject}
+          myTeams={myTeams}
         />
       </div>
 

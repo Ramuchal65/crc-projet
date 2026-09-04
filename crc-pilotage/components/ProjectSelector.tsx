@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Project } from "@/lib/types";
+import { Project, Team } from "@/lib/types";
 import { PROJECT_COLOR_PRESETS } from "@/lib/avatar";
 import { Plus, FolderKanban, Pencil, Check } from "lucide-react";
 
@@ -31,23 +31,27 @@ export default function ProjectSelector({
   onSelect,
   onCreate,
   onUpdate,
+  myTeams,
 }: {
   projects: Project[];
   selectedId: string | "all";
   onSelect: (id: string | "all") => void;
-  onCreate: (name: string, color: string) => void;
+  onCreate: (name: string, color: string, teamId: string) => void;
   onUpdate: (id: string, patch: { name?: string; color?: string }) => void;
+  myTeams: Team[];
 }) {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftColor, setDraftColor] = useState(PROJECT_COLOR_PRESETS[0]);
+  const [draftTeamId, setDraftTeamId] = useState(myTeams[0]?.id ?? "");
 
   const selectedProject = projects.find((p) => p.id === selectedId);
 
   function submitCreate() {
     const name = draftName.trim();
-    if (name) onCreate(name, draftColor);
+    if (!name || !draftTeamId) return;
+    onCreate(name, draftColor, draftTeamId);
     setDraftName("");
     setDraftColor(PROJECT_COLOR_PRESETS[0]);
     setCreating(false);
@@ -67,9 +71,17 @@ export default function ProjectSelector({
     setEditing(false);
   }
 
+  if (myTeams.length === 0) {
+    return (
+      <span className="text-xs text-ink/40 italic px-2">
+        Pas encore d'équipe assignée — demande à un admin.
+      </span>
+    );
+  }
+
   if (creating) {
     return (
-      <div className="flex items-center gap-2 border border-accent/40 rounded-lg px-2.5 py-1.5 bg-white">
+      <div className="flex items-center gap-2 border border-accent/40 rounded-lg px-2.5 py-1.5 bg-white flex-wrap">
         <input
           autoFocus
           value={draftName}
@@ -78,6 +90,19 @@ export default function ProjectSelector({
           placeholder="Nom du projet..."
           className="text-sm outline-none w-32"
         />
+        {myTeams.length > 1 && (
+          <select
+            value={draftTeamId}
+            onChange={(e) => setDraftTeamId(e.target.value)}
+            className="text-xs border border-line rounded px-1 py-1 bg-white"
+          >
+            {myTeams.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        )}
         <ColorSwatches value={draftColor} onChange={setDraftColor} />
         <button onClick={submitCreate} className="text-accent hover:text-accent/80">
           <Check size={15} />
