@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency, Project } from "@/lib/types";
 import { initials, avatarColor, isOverdue, dueDateLabel, withAlpha } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -30,7 +30,7 @@ export default function KanbanView({
   blockedTaskIds: Set<string>;
   projectById: Map<string, Project>;
   showProjectBadge: boolean;
-  onStatusChange: (id: string, status: Status) => void;
+  onStatusChange: (id: string, status: Status) => Promise<boolean>;
   onReorder: (status: Status, orderedIds: string[]) => void;
   onSelect: (id: string) => void;
   onQuickAdd: (title: string, status: Status) => void;
@@ -57,12 +57,24 @@ export default function KanbanView({
     items: tasks.filter((t) => t.status === status).sort((a, b) => a.order_index - b.order_index),
   }));
 
-  function handleReorderDrop(status: Status, targetId: string | null, zone: "before" | "after" | null) {
+  async function handleReorderDrop(status: Status, targetId: string | null, zone: "before" | "after" | null) {
     if (!dragId) return;
     const dragged = tasks.find((t) => t.id === dragId);
     if (!dragged) return;
 
-    if (dragged.status !== status) onStatusChange(dragId, status);
+    const changingStatus = dragged.status !== status;
+
+    if (changingStatus) {
+      const applied = await onStatusChange(dragId, status);
+      if (!applied) {
+        // refusé (ex: dépendance non terminée, annulé par l'utilisateur) —
+        // on n'y touche pas, la carte reste dans sa colonne d'origine
+        setDragId(null);
+        setOverColumn(null);
+        setDropTarget(null);
+        return;
+      }
+    }
 
     const columnItems = tasks
       .filter((t) => t.status === status && t.id !== dragId)
@@ -353,6 +365,44 @@ export default function KanbanView({
                         {PRIORITY_LABEL[task.priority]}
                       </span>
                     </div>
+
+                    {(() => {
+                      const idx = STATUS_ORDER.indexOf(col.status);
+                      const prevStatus = idx > 0 ? STATUS_ORDER[idx - 1] : null;
+                      const nextStatus = idx < STATUS_ORDER.length - 1 ? STATUS_ORDER[idx + 1] : null;
+                      return (
+                        <div className="flex items-center justify-between mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {prevStatus ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStatusChange(task.id, prevStatus);
+                              }}
+                              title={`Déplacer vers ${STATUS_LABEL[prevStatus]}`}
+                              className="text-ink/30 hover:text-ink flex items-center text-[10px] gap-0.5"
+                            >
+                              <ChevronLeft size={13} />
+                              {STATUS_LABEL[prevStatus]}
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+                          {nextStatus && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onStatusChange(task.id, nextStatus);
+                              }}
+                              title={`Déplacer vers ${STATUS_LABEL[nextStatus]}`}
+                              className="text-ink/30 hover:text-ink flex items-center text-[10px] gap-0.5"
+                            >
+                              {STATUS_LABEL[nextStatus]}
+                              <ChevronRight size={13} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {subtasks.length > 0 && (
                       <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-line/50">

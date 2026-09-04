@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Project, Team } from "@/lib/types";
 import { PROJECT_COLOR_PRESETS } from "@/lib/avatar";
-import { Plus, FolderKanban, Pencil, Check } from "lucide-react";
+import { Plus, FolderKanban, Pencil, Check, Trash2 } from "lucide-react";
 
 function ColorSwatches({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
@@ -31,6 +31,8 @@ export default function ProjectSelector({
   onSelect,
   onCreate,
   onUpdate,
+  onDelete,
+  taskCounts,
   myTeams,
 }: {
   projects: Project[];
@@ -38,6 +40,8 @@ export default function ProjectSelector({
   onSelect: (id: string | "all") => void;
   onCreate: (name: string, color: string, teamId: string) => void;
   onUpdate: (id: string, patch: { name?: string; color?: string }) => void;
+  onDelete: (id: string) => void;
+  taskCounts: Map<string, number>;
   myTeams: Team[];
 }) {
   const [creating, setCreating] = useState(false);
@@ -69,6 +73,20 @@ export default function ProjectSelector({
     const name = draftName.trim();
     onUpdate(selectedProject.id, { name: name || selectedProject.name, color: draftColor });
     setEditing(false);
+  }
+
+  function handleDelete() {
+    if (!selectedProject) return;
+    const count = taskCounts.get(selectedProject.id) ?? 0;
+    const message =
+      count > 0
+        ? `Ce projet contient ${count} tâche(s) qui seront aussi supprimée(s) définitivement. Continuer ?`
+        : `Supprimer le projet "${selectedProject.name}" ? Il n'a aucune tâche.`;
+    if (confirm(message)) {
+      onDelete(selectedProject.id);
+      setEditing(false);
+      onSelect("all");
+    }
   }
 
   if (myTeams.length === 0) {
@@ -124,6 +142,9 @@ export default function ProjectSelector({
         <ColorSwatches value={draftColor} onChange={setDraftColor} />
         <button onClick={submitEdit} className="text-accent hover:text-accent/80">
           <Check size={15} />
+        </button>
+        <button onClick={handleDelete} title="Supprimer ce projet" className="text-ink/30 hover:text-critique">
+          <Trash2 size={14} />
         </button>
       </div>
     );

@@ -96,6 +96,19 @@ export default function TaskBoard({
     if (error) console.error("Échec mise à jour projet :", error.message);
   }
 
+  async function deleteProject(id: string) {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setTasks((prev) => prev.filter((t) => t.project_id !== id));
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) console.error("Échec suppression projet :", error.message);
+  }
+
+  const taskCountsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach((t) => map.set(t.project_id, (map.get(t.project_id) ?? 0) + 1));
+    return map;
+  }, [tasks]);
+
   const responsables = useMemo(() => {
     const set = new Set<string>();
     tasks.forEach((t) => {
@@ -121,12 +134,12 @@ export default function TaskBoard({
     });
   }, [tasks, selectedProjectId, priorityFilter, responsableFilter, search]);
 
-  async function updateTask(id: string, patch: Partial<Task>) {
+  async function updateTask(id: string, patch: Partial<Task>): Promise<boolean> {
     if (patch.status === "fait" && blockedTaskIds.has(id)) {
       const proceed = window.confirm(
         "Cette tâche est encore bloquée par une dépendance non terminée. La marquer comme faite quand même ?"
       );
-      if (!proceed) return;
+      if (!proceed) return false;
     }
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     const { error } = await supabase
@@ -134,6 +147,7 @@ export default function TaskBoard({
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) console.error("Échec de la mise à jour :", error.message);
+    return true;
   }
 
   async function reorderColumn(status: Status, orderedIds: string[]) {
@@ -219,6 +233,8 @@ export default function TaskBoard({
               onSelect={setSelectedProjectId}
               onCreate={createProject}
               onUpdate={updateProject}
+              onDelete={deleteProject}
+              taskCounts={taskCountsByProject}
               myTeams={myTeams}
             />
             <div className="relative">

@@ -70,6 +70,18 @@ export default function GanttView({
     if (error) console.error("Échec mise à jour projet :", error.message);
   }
 
+  async function deleteProject(id: string) {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) console.error("Échec suppression projet :", error.message);
+  }
+
+  const taskCountsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    tasks.forEach((t) => map.set(t.project_id, (map.get(t.project_id) ?? 0) + 1));
+    return map;
+  }, [tasks]);
+
   const showProjectBadge = selectedProjectId === "all" && projects.length > 1;
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
 
@@ -185,6 +197,8 @@ export default function GanttView({
             onSelect={setSelectedProjectId}
             onCreate={createProject}
             onUpdate={updateProject}
+          onDelete={deleteProject}
+          taskCounts={taskCountsByProject}
           myTeams={myTeams}
           />
         </div>
@@ -212,6 +226,8 @@ export default function GanttView({
           onSelect={setSelectedProjectId}
           onCreate={createProject}
           onUpdate={updateProject}
+          onDelete={deleteProject}
+          taskCounts={taskCountsByProject}
           myTeams={myTeams}
         />
       </div>
