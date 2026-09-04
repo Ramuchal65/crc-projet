@@ -62,32 +62,53 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-      {
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const geminiBody = JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${EXTRACTION_PROMPT}\n\n--- CR À ANALYSER ---\n\n${rawText}` }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
+    });
+
+    // Gemini renvoie parfois 503 (surcharge temporaire côté Google) ou
+    // 429 (quota atteint) — on retente automatiquement avant d'abandonner,
+    // plutôt que de faire échouer l'utilisateur sur une simple saturation
+    // passagère du service.
+    let response: Response | null = null;
+    let lastErrText = "";
+    const RETRY_DELAYS_MS = [1500, 4000]; // 2 tentatives supplémentaires
+
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      response = await fetch(geminiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `${EXTRACTION_PROMPT}\n\n--- CR À ANALYSER ---\n\n${rawText}` }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+        body: geminiBody,
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return NextResponse.json(
-        { error: `Erreur Gemini: ${errText}` },
-        { status: 502 }
-      );
+      if (response.ok) break;
+
+      const retryable = response.status === 503 || response.status === 429;
+      lastErrText = await response.text();
+
+      if (!retryable || attempt === RETRY_DELAYS_MS.length) break;
+
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+    }
+
+    if (!response || !response.ok) {
+      const friendly =
+        response?.status === 503
+          ? "Le service d'IA (Gemini) est momentanément surchargé côté Google, même après plusieurs tentatives. Réessaie dans une minute ou deux — ce n'est pas un bug de l'outil."
+          : response?.status === 429
+          ? "Quota Gemini temporairement atteint. Réessaie un peu plus tard."
+          : `Erreur Gemini (statut ${response?.status ?? "inconnu"}) : ${lastErrText}`;
+      return NextResponse.json({ error: friendly }, { status: 502 });
     }
 
     const data = await response.json();
