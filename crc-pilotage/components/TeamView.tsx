@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Employee, Team } from "@/lib/types";
 import { PROJECT_COLOR_PRESETS } from "@/lib/avatar";
-import { UserPlus, Check, Circle, Plus } from "lucide-react";
+import { UserPlus, Check, Circle, Plus, Trash2 } from "lucide-react";
 
 interface Membership {
   team_id: string;
@@ -100,6 +100,13 @@ export default function TeamView({
   async function updateName(id: string, full_name: string) {
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, full_name } : e)));
     await supabase.from("employees").update({ full_name }).eq("id", id);
+  }
+
+  async function deleteEmployee(id: string) {
+    if (!confirm("Supprimer cette fiche salarié ? Utile pour nettoyer un doublon.")) return;
+    setEmployees((prev) => prev.filter((e) => e.id !== id));
+    const { error } = await supabase.from("employees").delete().eq("id", id);
+    if (error) alert("Échec : " + error.message);
   }
 
   return (
@@ -273,6 +280,15 @@ export default function TeamView({
                 <span className="text-[10px] text-accent flex items-center gap-0.5 ml-auto">
                   <Check size={10} /> Toi
                 </span>
+              )}
+              {isAdmin && emp.id !== currentEmployeeId && (
+                <button
+                  onClick={() => deleteEmployee(emp.id)}
+                  title="Supprimer cette fiche"
+                  className="text-ink/25 hover:text-critique transition-colors ml-auto"
+                >
+                  <Trash2 size={13} />
+                </button>
               )}
             </div>
           ))}
