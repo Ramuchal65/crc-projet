@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare, Globe, Lock, UserCircle } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project, Employee } from "@/lib/types";
+import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare, Globe, Lock, UserCircle, History } from "lucide-react";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project, Employee, ActivityLogEntry } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 
 export default function TaskDrawer({
@@ -41,6 +41,7 @@ export default function TaskDrawer({
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [newComment, setNewComment] = useState("");
   const [postingComment, setPostingComment] = useState(false);
+  const [activity, setActivity] = useState<ActivityLogEntry[]>([]);
 
   useEffect(() => {
     setTitle(task.title);
@@ -76,6 +77,25 @@ export default function TaskDrawer({
         if (error) console.error("Échec chargement commentaires :", error.message);
         setComments((data as TaskComment[]) ?? []);
         setCommentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [task.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createClient();
+    supabase
+      .from("activity_log")
+      .select("*")
+      .eq("task_id", task.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("Échec chargement historique :", error.message);
+        setActivity((data as ActivityLogEntry[]) ?? []);
       });
     return () => {
       cancelled = true;
@@ -511,6 +531,31 @@ export default function TaskDrawer({
               </div>
             </div>
           </div>
+
+          {activity.length > 0 && (
+            <div className="pt-4 border-t border-line space-y-2">
+              <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-ink/50">
+                <History size={12} />
+                Historique récent
+              </div>
+              <div className="space-y-1.5">
+                {activity.map((a) => (
+                  <p key={a.id} className="text-xs text-ink/50 leading-snug">
+                    {a.message}
+                    <span className="text-ink/30">
+                      {" · "}
+                      {new Date(a.created_at).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="pt-4 border-t border-line">
             {!confirmingDelete ? (
