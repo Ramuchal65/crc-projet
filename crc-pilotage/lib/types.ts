@@ -1,6 +1,16 @@
 export type Priority = "haute" | "moyenne" | "basse";
 export type Status = "a_faire" | "en_cours" | "bloque" | "fait";
 
+export interface Notification {
+  id: string;
+  employee_id: string;
+  type: "assigned" | "comment";
+  task_id: string | null;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
 export interface Employee {
   id: string;
   auth_user_id: string | null;
