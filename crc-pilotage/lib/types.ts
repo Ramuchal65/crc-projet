@@ -1,6 +1,16 @@
 export type Priority = "haute" | "moyenne" | "basse";
 export type Status = "a_faire" | "en_cours" | "bloque" | "fait";
 
+export interface ActivityLogEntry {
+  id: string;
+  project_id: string;
+  task_id: string | null;
+  employee_id: string | null;
+  action: "created" | "status" | "priority" | "assignee" | "due_date" | "comment";
+  message: string;
+  created_at: string;
+}
+
 export interface Notification {
   id: string;
   employee_id: string;
