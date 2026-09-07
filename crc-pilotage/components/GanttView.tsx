@@ -56,17 +56,23 @@ export default function GanttView({
     teamId: string,
     defaultVisibility: "public" | "private"
   ) {
-    const { data, error } = await supabase
-      .from("projects")
-      .insert({ name, color, team_id: teamId, default_visibility: defaultVisibility })
-      .select()
-      .single();
+    const newProject: Project = {
+      id: crypto.randomUUID(),
+      name,
+      color,
+      team_id: teamId,
+      default_visibility: defaultVisibility,
+      description: null,
+      created_at: new Date().toISOString(),
+    };
+    setProjects((prev) => [...prev, newProject]);
+    setSelectedProjectId(newProject.id);
+    const { error } = await supabase.from("projects").insert(newProject);
     if (error) {
       console.error("Échec création projet :", error.message);
-      return;
+      alert(`Échec création projet : ${error.message}`);
+      setProjects((prev) => prev.filter((p) => p.id !== newProject.id));
     }
-    setProjects((prev) => [...prev, data as Project]);
-    setSelectedProjectId((data as Project).id);
   }
 
   async function updateProject(

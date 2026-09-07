@@ -107,18 +107,22 @@ export default function TaskDrawer({
     if (!body) return;
     setPostingComment(true);
     const supabase = createClient();
-    const { data, error } = await supabase
-      .from("task_comments")
-      .insert({ task_id: task.id, author_name: currentEmployeeName, body })
-      .select()
-      .single();
+    const newCommentObj: TaskComment = {
+      id: crypto.randomUUID(),
+      task_id: task.id,
+      author_name: currentEmployeeName,
+      body,
+      created_at: new Date().toISOString(),
+    };
+    setComments((prev) => [...prev, newCommentObj]);
+    setNewComment("");
+    const { error } = await supabase.from("task_comments").insert(newCommentObj);
     setPostingComment(false);
     if (error) {
       console.error("Échec envoi commentaire :", error.message);
-      return;
+      alert(`Échec envoi commentaire : ${error.message}`);
+      setComments((prev) => prev.filter((c) => c.id !== newCommentObj.id));
     }
-    setComments((prev) => [...prev, data as TaskComment]);
-    setNewComment("");
   }
 
   const dependsOn = dependencies.filter((d) => d.task_id === task.id);

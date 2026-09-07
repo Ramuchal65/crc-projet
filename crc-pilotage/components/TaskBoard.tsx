@@ -62,16 +62,17 @@ export default function TaskBoard({
       alert("Impossible : cette tâche dépend déjà de celle-ci (cycle direct).");
       return;
     }
-    const { data, error } = await supabase
-      .from("task_dependencies")
-      .insert({ task_id: taskId, depends_on_task_id: dependsOnTaskId })
-      .select()
-      .single();
+    const newDep: TaskDependency = {
+      id: crypto.randomUUID(),
+      task_id: taskId,
+      depends_on_task_id: dependsOnTaskId,
+    };
+    setDependencies((prev) => [...prev, newDep]);
+    const { error } = await supabase.from("task_dependencies").insert(newDep);
     if (error) {
       console.error("Échec ajout dépendance :", error.message);
-      return;
+      setDependencies((prev) => prev.filter((d) => d.id !== newDep.id));
     }
-    setDependencies((prev) => [...prev, data as TaskDependency]);
   }
 
   async function removeDependency(dependencyId: string) {
@@ -86,17 +87,23 @@ export default function TaskBoard({
     teamId: string,
     defaultVisibility: "public" | "private"
   ) {
-    const { data, error } = await supabase
-      .from("projects")
-      .insert({ name, color, team_id: teamId, default_visibility: defaultVisibility })
-      .select()
-      .single();
+    const newProject: Project = {
+      id: crypto.randomUUID(),
+      name,
+      color,
+      team_id: teamId,
+      default_visibility: defaultVisibility,
+      description: null,
+      created_at: new Date().toISOString(),
+    };
+    setProjects((prev) => [...prev, newProject]);
+    setSelectedProjectId(newProject.id);
+    const { error } = await supabase.from("projects").insert(newProject);
     if (error) {
       console.error("Échec création projet :", error.message);
-      return;
+      alert(`Échec création projet : ${error.message}`);
+      setProjects((prev) => prev.filter((p) => p.id !== newProject.id));
     }
-    setProjects((prev) => [...prev, data as Project]);
-    setSelectedProjectId((data as Project).id);
   }
 
   async function updateProject(
@@ -187,15 +194,6 @@ export default function TaskBoard({
   }
 
   async function createTask(title: string, status: Status = "a_faire") {
-    // DIAGNOSTIC TEMPORAIRE — à retirer une fois le bug résolu
-    const { data: sessionCheck, error: sessionErr } = await supabase.auth.getUser();
-    console.log("[diagnostic] utilisateur au moment de la création :", {
-      userId: sessionCheck?.user?.id,
-      email: sessionCheck?.user?.email,
-      sessionErr,
-      currentEmployeeId,
-    });
-
     // en vue "Tous les projets", on assigne au premier projet — un projet
     // précis doit être sélectionné pour une assignation intentionnelle
     const targetProjectId = selectedProjectId !== "all" ? selectedProjectId : projects[0]?.id;
@@ -203,24 +201,45 @@ export default function TaskBoard({
       alert("Crée d'abord un projet avant d'ajouter des tâches.");
       return;
     }
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert({
-        project_id: targetProjectId,
-        title,
-        priority: "moyenne",
-        status,
-        created_by: currentEmployeeId,
-        order_index: tasks.filter((t) => t.status === status && t.project_id === targetProjectId)
-          .length,
-      })
-      .select()
-      .single();
+
+    // On génère l'id côté client et on n'utilise plus .select() après
+    // l'insertion : .insert().select() déclenche une relecture immédiate
+    // soumise à la policy SELECT (visibilité), distincte de la policy
+    // d'écriture — une tâche pouvait donc être réellement créée en base
+    // tout en faisant échouer l'affichage à cause de cette relecture.
+    // On connaît déjà toutes les valeurs envoyées, pas besoin de les
+    // redemander au serveur.
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      project_id: targetProjectId,
+      ref_source: null,
+      title,
+      description: null,
+      responsible_name_raw: null,
+      task_type: null,
+      priority: "moyenne",
+      status,
+      due_date_raw: null,
+      due_date: null,
+      start_date: null,
+      order_index: tasks.filter((t) => t.status === status && t.project_id === targetProjectId)
+        .length,
+      subtasks: [],
+      visibility: null,
+      assignee_employee_id: null,
+      created_by: currentEmployeeId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setTasks((prev) => [...prev, newTask]);
+
+    const { error } = await supabase.from("tasks").insert(newTask);
     if (error) {
       console.error("Échec de la création :", error.message);
-      return;
+      alert(`Échec de la création : ${error.message}`);
+      setTasks((prev) => prev.filter((t) => t.id !== newTask.id));
     }
-    setTasks((prev) => [...prev, data as Task]);
   }
 
   async function deleteTask(id: string) {

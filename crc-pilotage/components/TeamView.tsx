@@ -52,17 +52,20 @@ export default function TeamView({
   async function addEmployee() {
     if (!name.trim() || !email.trim() || password.length < 8) return;
     setBusy(true);
-    const { data, error } = await supabase
-      .from("employees")
-      .insert({ full_name: name.trim(), email: email.trim(), role: "salarie" })
-      .select()
-      .single();
+    const newEmployee: Employee = {
+      id: crypto.randomUUID(),
+      full_name: name.trim(),
+      email: email.trim(),
+      role: "salarie",
+      auth_user_id: null,
+      created_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("employees").insert(newEmployee);
     if (error) {
       alert("Échec : " + error.message);
       setBusy(false);
       return;
     }
-    const newEmployee = data as Employee;
 
     const res = await fetch("/api/admin/set-password", {
       method: "POST",
@@ -112,19 +115,21 @@ export default function TeamView({
 
   async function addTeam() {
     if (!teamName.trim()) return;
-    const { data, error } = await supabase
-      .from("teams")
-      .insert({ name: teamName.trim(), color: teamColor })
-      .select()
-      .single();
-    if (error) {
-      alert("Échec : " + error.message);
-      return;
-    }
-    setTeams((prev) => [...prev, data as Team]);
+    const newTeam: Team = {
+      id: crypto.randomUUID(),
+      name: teamName.trim(),
+      color: teamColor,
+      created_at: new Date().toISOString(),
+    };
+    setTeams((prev) => [...prev, newTeam]);
     setTeamName("");
     setTeamColor(PROJECT_COLOR_PRESETS[0]);
     setAddingTeam(false);
+    const { error } = await supabase.from("teams").insert(newTeam);
+    if (error) {
+      alert("Échec : " + error.message);
+      setTeams((prev) => prev.filter((t) => t.id !== newTeam.id));
+    }
   }
 
   async function toggleMembership(employeeId: string, teamId: string) {
