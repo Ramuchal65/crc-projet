@@ -2,8 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut } from "lucide-react";
+import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
@@ -16,6 +17,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -66,6 +68,13 @@ export default function Sidebar() {
       <div className="px-5 py-4 border-t border-paper/10 space-y-2">
         {name && <p className="text-xs text-paper/60 truncate">{name}</p>}
         <button
+          onClick={() => setChangingPassword(true)}
+          className="flex items-center gap-1.5 text-xs text-paper/40 hover:text-paper transition-colors"
+        >
+          <KeyRound size={12} />
+          Changer mon mot de passe
+        </button>
+        <button
           onClick={handleLogout}
           className="flex items-center gap-1.5 text-xs text-paper/40 hover:text-paper transition-colors"
         >
@@ -73,6 +82,7 @@ export default function Sidebar() {
           Se déconnecter
         </button>
       </div>
+      {changingPassword && <ChangePasswordModal onClose={() => setChangingPassword(false)} />}
     </aside>
   );
 }
