@@ -2,10 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound, LayoutDashboard } from "lucide-react";
+import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound, LayoutDashboard, Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ChangePasswordModal from "./ChangePasswordModal";
-import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
@@ -15,11 +14,16 @@ const NAV_ITEMS = [
   { href: "/team", label: "Équipe", icon: Users },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  unreadNotifications,
+  onToggleNotifications,
+}: {
+  unreadNotifications: number;
+  onToggleNotifications: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
@@ -28,11 +32,10 @@ export default function Sidebar() {
       if (!user) return;
       const { data } = await supabase
         .from("employees")
-        .select("id, full_name")
+        .select("full_name")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       setName(data?.full_name ?? user.email ?? null);
-      setEmployeeId(data?.id ?? null);
     });
   }, []);
 
@@ -67,9 +70,18 @@ export default function Sidebar() {
             </a>
           );
         })}
-        <div className="pt-1">
-          <NotificationBell employeeId={employeeId} />
-        </div>
+        <button
+          onClick={onToggleNotifications}
+          className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-paper/60 hover:text-paper hover:bg-paper/5 transition-colors w-full"
+        >
+          <Bell size={16} strokeWidth={2} />
+          Notifications
+          {unreadNotifications > 0 && (
+            <span className="ml-auto bg-critique text-white text-[10px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
+              {unreadNotifications > 9 ? "9+" : unreadNotifications}
+            </span>
+          )}
+        </button>
       </nav>
 
       <div className="px-5 py-4 border-t border-paper/10 space-y-2">
