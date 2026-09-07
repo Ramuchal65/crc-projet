@@ -145,21 +145,19 @@ export default function ImportPage() {
       const supabase = createClient();
       localStorage.setItem("crc_last_project_id", projectId);
 
-      const { data: crImport, error: crErr } = await supabase
-        .from("cr_imports")
-        .insert({
-          project_id: projectId,
-          raw_text: rawText,
-          cr_title: extraction.cr_meta.titre,
-          cr_date: extraction.cr_meta.date,
-        })
-        .select()
-        .single();
+      const crImportId = crypto.randomUUID();
+      const { error: crErr } = await supabase.from("cr_imports").insert({
+        id: crImportId,
+        project_id: projectId,
+        raw_text: rawText,
+        cr_title: extraction.cr_meta.titre,
+        cr_date: extraction.cr_meta.date,
+      });
       if (crErr) throw crErr;
 
       const tasksToInsert = extraction.taches.map((t, i) => ({
         project_id: projectId,
-        cr_import_id: crImport.id,
+        cr_import_id: crImportId,
         ref_source: t.ref_source,
         title: t.titre,
         description: t.description,
@@ -179,7 +177,7 @@ export default function ImportPage() {
       if (extraction.risques.length > 0) {
         const risksToInsert = extraction.risques.map((r) => ({
           project_id: projectId,
-          cr_import_id: crImport.id,
+          cr_import_id: crImportId,
           level: r.niveau,
           description: r.description,
           impact: r.impact,
