@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ChangePasswordModal from "./ChangePasswordModal";
+import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
@@ -17,6 +18,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
@@ -25,10 +27,11 @@ export default function Sidebar() {
       if (!user) return;
       const { data } = await supabase
         .from("employees")
-        .select("full_name")
+        .select("id, full_name")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       setName(data?.full_name ?? user.email ?? null);
+      setEmployeeId(data?.id ?? null);
     });
   }, []);
 
@@ -63,6 +66,9 @@ export default function Sidebar() {
             </a>
           );
         })}
+        <div className="pt-1">
+          <NotificationBell employeeId={employeeId} />
+        </div>
       </nav>
 
       <div className="px-5 py-4 border-t border-paper/10 space-y-2">
