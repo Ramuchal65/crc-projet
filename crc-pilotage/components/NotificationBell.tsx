@@ -64,7 +64,7 @@ export default function NotificationBell({ employeeId }: { employeeId: string | 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-full bottom-0 ml-2 w-80 bg-white border border-line rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
+          <div className="fixed left-64 bottom-4 w-80 bg-white border border-line rounded-lg shadow-xl z-50 max-h-96 overflow-y-auto">
             <div className="flex items-center justify-between px-3 py-2 border-b border-line sticky top-0 bg-white">
               <span className="text-xs font-medium text-ink/60">Notifications</span>
               {unreadCount > 0 && (
