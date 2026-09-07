@@ -2,13 +2,14 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound } from "lucide-react";
+import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound, LayoutDashboard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ChangePasswordModal from "./ChangePasswordModal";
 import NotificationBell from "./NotificationBell";
 
 const NAV_ITEMS = [
   { href: "/", label: "Tâches", icon: LayoutGrid },
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/import", label: "Importer un CR", icon: Upload },
   { href: "/gantt", label: "Gantt", icon: GanttChartSquare },
   { href: "/team", label: "Équipe", icon: Users },
