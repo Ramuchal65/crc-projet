@@ -50,10 +50,15 @@ export default function GanttView({
   const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const supabase = createClient();
 
-  async function createProject(name: string, color: string, teamId: string) {
+  async function createProject(
+    name: string,
+    color: string,
+    teamId: string,
+    defaultVisibility: "public" | "private"
+  ) {
     const { data, error } = await supabase
       .from("projects")
-      .insert({ name, color, team_id: teamId })
+      .insert({ name, color, team_id: teamId, default_visibility: defaultVisibility })
       .select()
       .single();
     if (error) {
@@ -64,7 +69,10 @@ export default function GanttView({
     setSelectedProjectId((data as Project).id);
   }
 
-  async function updateProject(id: string, patch: { name?: string; color?: string }) {
+  async function updateProject(
+    id: string,
+    patch: { name?: string; color?: string; default_visibility?: "public" | "private" }
+  ) {
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     const { error } = await supabase.from("projects").update(patch).eq("id", id);
     if (error) console.error("Échec mise à jour projet :", error.message);

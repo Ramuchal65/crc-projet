@@ -23,6 +23,7 @@ export interface Project {
   description: string | null;
   color: string;
   team_id: string;
+  default_visibility: "public" | "private";
   created_at: string;
 }
 
@@ -47,6 +48,9 @@ export interface Task {
   start_date: string | null;
   order_index: number;
   subtasks: Subtask[];
+  visibility: "public" | "private" | null;
+  assignee_employee_id: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Task, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_LABEL, TaskDependency, Project } from "@/lib/types";
 import { initials, avatarColor, isOverdue, dueDateLabel, withAlpha } from "@/lib/avatar";
-import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { GripVertical, Plus, CalendarDays, Lock, Link2, ArrowDownToLine, ArrowUpFromLine, CalendarOff, ChevronLeft, ChevronRight, EyeOff } from "lucide-react";
 
 const COLUMN_ACCENT: Record<Status, string> = {
   a_faire: "bg-ink/20",
@@ -185,6 +185,9 @@ export default function KanbanView({
           <div className="space-y-2">
             {col.items.map((task) => {
               const overdue = isOverdue(task.due_date) && task.status !== "fait";
+              const isPrivate =
+                (task.visibility ?? projectById.get(task.project_id)?.default_visibility ?? "public") ===
+                "private";
               const blocked = blockedTaskIds.has(task.id);
               const firstResponsable = task.responsible_name_raw?.split(",")[0]?.trim();
               const isDropTarget = dropTarget?.id === task.id && dragId !== task.id;
@@ -272,6 +275,11 @@ export default function KanbanView({
                       <p className="text-sm font-medium leading-snug line-clamp-2 flex-1">
                         {task.title}
                       </p>
+                      {isPrivate && (
+                        <span title="Tâche privée : visible seulement par le créateur/l'assigné·e">
+                          <EyeOff size={12} className="text-ink/35 shrink-0 mt-1" />
+                        </span>
+                      )}
                       {blocked && (
                         <span title="Bloquée par une dépendance non terminée">
                           <Lock size={12} className="text-critique shrink-0 mt-1" />

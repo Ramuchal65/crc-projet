@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Project, Team } from "@/lib/types";
 import { PROJECT_COLOR_PRESETS } from "@/lib/avatar";
-import { Plus, FolderKanban, Pencil, Check, Trash2 } from "lucide-react";
+import { Plus, FolderKanban, Pencil, Check, Trash2, Lock, Globe } from "lucide-react";
 
 function ColorSwatches({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
@@ -25,6 +25,30 @@ function ColorSwatches({ value, onChange }: { value: string; onChange: (c: strin
   );
 }
 
+function VisibilityToggle({
+  value,
+  onChange,
+}: {
+  value: "public" | "private";
+  onChange: (v: "public" | "private") => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(value === "public" ? "private" : "public")}
+      title={
+        value === "public"
+          ? "Public : les tâches sont visibles par toute l'équipe par défaut"
+          : "Privé : les tâches ne sont visibles que par leur créateur/assigné par défaut"
+      }
+      className="flex items-center gap-1 text-xs border border-line rounded px-1.5 py-1 text-ink/60 hover:border-ink/30 shrink-0"
+    >
+      {value === "public" ? <Globe size={12} /> : <Lock size={12} />}
+      {value === "public" ? "Public" : "Privé"}
+    </button>
+  );
+}
+
 export default function ProjectSelector({
   projects,
   selectedId,
@@ -38,8 +62,8 @@ export default function ProjectSelector({
   projects: Project[];
   selectedId: string | "all";
   onSelect: (id: string | "all") => void;
-  onCreate: (name: string, color: string, teamId: string) => void;
-  onUpdate: (id: string, patch: { name?: string; color?: string }) => void;
+  onCreate: (name: string, color: string, teamId: string, defaultVisibility: "public" | "private") => void;
+  onUpdate: (id: string, patch: { name?: string; color?: string; default_visibility?: "public" | "private" }) => void;
   onDelete: (id: string) => void;
   taskCounts: Map<string, number>;
   myTeams: Team[];
@@ -49,13 +73,14 @@ export default function ProjectSelector({
   const [draftName, setDraftName] = useState("");
   const [draftColor, setDraftColor] = useState(PROJECT_COLOR_PRESETS[0]);
   const [draftTeamId, setDraftTeamId] = useState(myTeams[0]?.id ?? "");
+  const [draftVisibility, setDraftVisibility] = useState<"public" | "private">("public");
 
   const selectedProject = projects.find((p) => p.id === selectedId);
 
   function submitCreate() {
     const name = draftName.trim();
     if (!name || !draftTeamId) return;
-    onCreate(name, draftColor, draftTeamId);
+    onCreate(name, draftColor, draftTeamId, draftVisibility);
     setDraftName("");
     setDraftColor(PROJECT_COLOR_PRESETS[0]);
     setCreating(false);
@@ -65,13 +90,18 @@ export default function ProjectSelector({
     if (!selectedProject) return;
     setDraftName(selectedProject.name);
     setDraftColor(selectedProject.color);
+    setDraftVisibility(selectedProject.default_visibility);
     setEditing(true);
   }
 
   function submitEdit() {
     if (!selectedProject) return;
     const name = draftName.trim();
-    onUpdate(selectedProject.id, { name: name || selectedProject.name, color: draftColor });
+    onUpdate(selectedProject.id, {
+      name: name || selectedProject.name,
+      color: draftColor,
+      default_visibility: draftVisibility,
+    });
     setEditing(false);
   }
 
@@ -122,6 +152,7 @@ export default function ProjectSelector({
           </select>
         )}
         <ColorSwatches value={draftColor} onChange={setDraftColor} />
+        <VisibilityToggle value={draftVisibility} onChange={setDraftVisibility} />
         <button onClick={submitCreate} className="text-accent hover:text-accent/80">
           <Check size={15} />
         </button>
@@ -140,6 +171,7 @@ export default function ProjectSelector({
           className="text-sm outline-none w-32"
         />
         <ColorSwatches value={draftColor} onChange={setDraftColor} />
+        <VisibilityToggle value={draftVisibility} onChange={setDraftVisibility} />
         <button onClick={submitEdit} className="text-accent hover:text-accent/80">
           <Check size={15} />
         </button>

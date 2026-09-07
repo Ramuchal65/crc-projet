@@ -4,11 +4,18 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Employee, Team } from "@/lib/types";
 import { PROJECT_COLOR_PRESETS } from "@/lib/avatar";
-import { UserPlus, Check, Circle, Plus, Trash2 } from "lucide-react";
+import { UserPlus, Check, Circle, Plus, Trash2, KeyRound, Copy } from "lucide-react";
 
 interface Membership {
   team_id: string;
   employee_id: string;
+}
+
+function generatePassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
 }
 
 export default function TeamView({
@@ -30,13 +37,21 @@ export default function TeamView({
   const [addingEmployee, setAddingEmployee] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState(generatePassword());
   const [addingTeam, setAddingTeam] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [teamColor, setTeamColor] = useState(PROJECT_COLOR_PRESETS[0]);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [savedPasswordFor, setSavedPasswordFor] = useState<{ name: string; password: string } | null>(
+    null
+  );
+  const [busy, setBusy] = useState(false);
   const supabase = createClient();
 
   async function addEmployee() {
-    if (!name.trim() || !email.trim()) return;
+    if (!name.trim() || !email.trim() || password.length < 8) return;
+    setBusy(true);
     const { data, error } = await supabase
       .from("employees")
       .insert({ full_name: name.trim(), email: email.trim(), role: "salarie" })
@@ -44,12 +59,55 @@ export default function TeamView({
       .single();
     if (error) {
       alert("Échec : " + error.message);
+      setBusy(false);
       return;
     }
-    setEmployees((prev) => [...prev, data as Employee]);
+    const newEmployee = data as Employee;
+
+    const res = await fetch("/api/admin/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeId: newEmployee.id, email: newEmployee.email, password }),
+    });
+    const result = await res.json();
+    setBusy(false);
+
+    if (!res.ok) {
+      alert("Fiche créée, mais échec de création du compte : " + result.error);
+    } else {
+      setSavedPasswordFor({ name: newEmployee.full_name, password });
+    }
+
+    setEmployees((prev) => [...prev, { ...newEmployee, auth_user_id: "pending" }]);
     setName("");
     setEmail("");
+    setPassword(generatePassword());
     setAddingEmployee(false);
+  }
+
+  async function submitResetPassword(emp: Employee) {
+    if (resetPassword.length < 8) {
+      alert("Le mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+    setBusy(true);
+    const res = await fetch("/api/admin/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeId: emp.id, email: emp.email, password: resetPassword }),
+    });
+    const result = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      alert("Échec : " + result.error);
+      return;
+    }
+    setSavedPasswordFor({ name: emp.full_name, password: resetPassword });
+    setResettingId(null);
+    setResetPassword("");
+    if (!emp.auth_user_id) {
+      setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, auth_user_id: "pending" } : e)));
+    }
   }
 
   async function addTeam() {
@@ -111,6 +169,32 @@ export default function TeamView({
 
   return (
     <div className="space-y-8 max-w-3xl">
+      {savedPasswordFor && (
+        <div className="border border-accent/30 bg-accentSoft rounded-lg p-4 space-y-2">
+          <p className="text-sm font-medium">
+            Mot de passe pour {savedPasswordFor.name} — à communiquer maintenant, il ne sera
+            plus jamais réaffiché :
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="bg-white border border-line rounded px-3 py-1.5 text-sm font-mono">
+              {savedPasswordFor.password}
+            </code>
+            <button
+              onClick={() => navigator.clipboard.writeText(savedPasswordFor.password)}
+              className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs"
+            >
+              <Copy size={13} /> Copier
+            </button>
+          </div>
+          <button
+            onClick={() => setSavedPasswordFor(null)}
+            className="text-xs text-ink/40 hover:text-ink"
+          >
+            J'ai noté, fermer
+          </button>
+        </div>
+      )}
+
       {/* Équipes */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -186,10 +270,9 @@ export default function TeamView({
 
         {isAdmin && (
           <p className="text-xs text-ink/40 bg-accentSoft border border-accent/20 rounded-lg px-3 py-2">
-            Ajouter un salarié ici ne l'inscrit pas automatiquement — ça réserve juste son nom et
-            son rôle. Il devra se connecter une première fois via la page de connexion avec la
-            même adresse e-mail pour activer son compte. N'oublie pas de cocher au moins une
-            équipe pour qu'il voie des projets.
+            Ajouter un salarié crée directement son compte avec le mot de passe indiqué — il
+            peut se connecter immédiatement, pas besoin d'email de confirmation. Pense à
+            cocher au moins une équipe pour qu'il voie des projets.
           </p>
         )}
 
@@ -208,87 +291,145 @@ export default function TeamView({
               type="email"
               className="w-full border border-line rounded-md px-2.5 py-1.5 text-sm bg-white"
             />
-            <button onClick={addEmployee} className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm">
-              Enregistrer
+            <div className="flex items-center gap-2">
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="flex-1 border border-line rounded-md px-2.5 py-1.5 text-sm bg-white font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setPassword(generatePassword())}
+                className="text-xs text-accent hover:text-accent/80 shrink-0"
+              >
+                Régénérer
+              </button>
+            </div>
+            <button
+              onClick={addEmployee}
+              disabled={busy}
+              className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm disabled:opacity-40"
+            >
+              {busy ? "Création..." : "Créer le compte"}
             </button>
           </div>
         )}
 
         <div className="border border-line rounded-lg bg-white divide-y divide-line">
           {employees.map((emp) => (
-            <div key={emp.id} className="flex items-center gap-3 px-4 py-2.5 flex-wrap">
-              <span title={emp.auth_user_id ? "Compte activé" : "Pas encore connecté"}>
-                <Circle
-                  size={8}
-                  className={emp.auth_user_id ? "fill-basse text-basse" : "fill-line text-line"}
+            <div key={emp.id} className="px-4 py-2.5 space-y-2">
+              <div className="flex items-center gap-3 flex-wrap">
+                <span title={emp.auth_user_id ? "Compte activé" : "Pas encore de compte"}>
+                  <Circle
+                    size={8}
+                    className={emp.auth_user_id ? "fill-basse text-basse" : "fill-line text-line"}
+                  />
+                </span>
+                <input
+                  defaultValue={emp.full_name}
+                  onBlur={(e) => e.target.value !== emp.full_name && updateName(emp.id, e.target.value)}
+                  disabled={!isAdmin && emp.id !== currentEmployeeId}
+                  className="text-sm bg-transparent outline-none border-b border-transparent hover:border-line focus:border-ink w-36 shrink-0 disabled:text-ink/60"
                 />
-              </span>
-              <input
-                defaultValue={emp.full_name}
-                onBlur={(e) => e.target.value !== emp.full_name && updateName(emp.id, e.target.value)}
-                disabled={!isAdmin && emp.id !== currentEmployeeId}
-                className="text-sm bg-transparent outline-none border-b border-transparent hover:border-line focus:border-ink w-36 shrink-0 disabled:text-ink/60"
-              />
-              <span className="text-xs text-ink/40 w-44 truncate shrink-0">{emp.email}</span>
-              {isAdmin ? (
-                <select
-                  value={emp.role}
-                  onChange={(e) => updateRole(emp.id, e.target.value as "admin" | "salarie")}
-                  className="text-xs border border-line rounded px-1.5 py-1 bg-white shrink-0"
-                >
-                  <option value="salarie">Salarié</option>
-                  <option value="admin">Admin</option>
-                </select>
-              ) : (
-                <span className="text-xs text-ink/40 shrink-0 capitalize">{emp.role}</span>
-              )}
+                <span className="text-xs text-ink/40 w-44 truncate shrink-0">{emp.email}</span>
+                {isAdmin ? (
+                  <select
+                    value={emp.role}
+                    onChange={(e) => updateRole(emp.id, e.target.value as "admin" | "salarie")}
+                    className="text-xs border border-line rounded px-1.5 py-1 bg-white shrink-0"
+                  >
+                    <option value="salarie">Salarié</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                ) : (
+                  <span className="text-xs text-ink/40 shrink-0 capitalize">{emp.role}</span>
+                )}
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {teams.map((t) => {
-                  const active = memberships.some(
-                    (m) => m.employee_id === emp.id && m.team_id === t.id
-                  );
-                  if (!isAdmin) {
-                    return active ? (
-                      <span
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {teams.map((t) => {
+                    const active = memberships.some(
+                      (m) => m.employee_id === emp.id && m.team_id === t.id
+                    );
+                    if (!isAdmin) {
+                      return active ? (
+                        <span
+                          key={t.id}
+                          className="text-[11px] px-2 py-0.5 rounded-full text-white"
+                          style={{ backgroundColor: t.color }}
+                        >
+                          {t.name}
+                        </span>
+                      ) : null;
+                    }
+                    return (
+                      <button
                         key={t.id}
-                        className="text-[11px] px-2 py-0.5 rounded-full text-white"
-                        style={{ backgroundColor: t.color }}
+                        onClick={() => toggleMembership(emp.id, t.id)}
+                        className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
+                          active
+                            ? "text-white border-transparent"
+                            : "text-ink/40 border-line hover:border-ink/30"
+                        }`}
+                        style={active ? { backgroundColor: t.color } : undefined}
                       >
                         {t.name}
-                      </span>
-                    ) : null;
-                  }
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => toggleMembership(emp.id, t.id)}
-                      className={`text-[11px] px-2 py-0.5 rounded-full border transition-colors ${
-                        active
-                          ? "text-white border-transparent"
-                          : "text-ink/40 border-line hover:border-ink/30"
-                      }`}
-                      style={active ? { backgroundColor: t.color } : undefined}
-                    >
-                      {t.name}
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {emp.id === currentEmployeeId && (
+                  <span className="text-[10px] text-accent flex items-center gap-0.5 ml-auto">
+                    <Check size={10} /> Toi
+                  </span>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setResettingId(resettingId === emp.id ? null : emp.id);
+                      setResetPassword(generatePassword());
+                    }}
+                    title={emp.auth_user_id ? "Réinitialiser le mot de passe" : "Créer le compte"}
+                    className={`text-ink/30 hover:text-accent transition-colors ${
+                      emp.id !== currentEmployeeId ? "" : "ml-auto"
+                    }`}
+                  >
+                    <KeyRound size={13} />
+                  </button>
+                )}
+                {isAdmin && emp.id !== currentEmployeeId && (
+                  <button
+                    onClick={() => deleteEmployee(emp.id)}
+                    title="Supprimer cette fiche"
+                    className="text-ink/25 hover:text-critique transition-colors"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </div>
 
-              {emp.id === currentEmployeeId && (
-                <span className="text-[10px] text-accent flex items-center gap-0.5 ml-auto">
-                  <Check size={10} /> Toi
-                </span>
-              )}
-              {isAdmin && emp.id !== currentEmployeeId && (
-                <button
-                  onClick={() => deleteEmployee(emp.id)}
-                  title="Supprimer cette fiche"
-                  className="text-ink/25 hover:text-critique transition-colors ml-auto"
-                >
-                  <Trash2 size={13} />
-                </button>
+              {resettingId === emp.id && (
+                <div className="flex items-center gap-2 pl-5">
+                  <input
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="flex-1 border border-line rounded-md px-2.5 py-1.5 text-sm bg-white font-mono max-w-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setResetPassword(generatePassword())}
+                    className="text-xs text-accent hover:text-accent/80"
+                  >
+                    Régénérer
+                  </button>
+                  <button
+                    onClick={() => submitResetPassword(emp)}
+                    disabled={busy}
+                    className="bg-accent text-white px-2.5 py-1.5 rounded-lg text-xs disabled:opacity-40"
+                  >
+                    Valider
+                  </button>
+                </div>
               )}
             </div>
           ))}

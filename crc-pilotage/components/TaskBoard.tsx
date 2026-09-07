@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status, TaskDependency, Project, Team } from "@/lib/types";
+import { Task, Priority, Status, TaskDependency, Project, Team, Employee } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
@@ -16,12 +16,16 @@ export default function TaskBoard({
   initialDependencies,
   initialProjects,
   currentEmployeeName,
+  currentEmployeeId,
+  employees,
   myTeams,
 }: {
   initialTasks: Task[];
   initialDependencies: TaskDependency[];
   initialProjects: Project[];
   currentEmployeeName: string;
+  currentEmployeeId: string | null;
+  employees: Employee[];
   myTeams: Team[];
 }) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
@@ -76,10 +80,15 @@ export default function TaskBoard({
     if (error) console.error("Échec suppression dépendance :", error.message);
   }
 
-  async function createProject(name: string, color: string, teamId: string) {
+  async function createProject(
+    name: string,
+    color: string,
+    teamId: string,
+    defaultVisibility: "public" | "private"
+  ) {
     const { data, error } = await supabase
       .from("projects")
-      .insert({ name, color, team_id: teamId })
+      .insert({ name, color, team_id: teamId, default_visibility: defaultVisibility })
       .select()
       .single();
     if (error) {
@@ -90,7 +99,10 @@ export default function TaskBoard({
     setSelectedProjectId((data as Project).id);
   }
 
-  async function updateProject(id: string, patch: { name?: string; color?: string }) {
+  async function updateProject(
+    id: string,
+    patch: { name?: string; color?: string; default_visibility?: "public" | "private" }
+  ) {
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     const { error } = await supabase.from("projects").update(patch).eq("id", id);
     if (error) console.error("Échec mise à jour projet :", error.message);
@@ -141,12 +153,24 @@ export default function TaskBoard({
       );
       if (!proceed) return false;
     }
+    const previous = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
     const { error } = await supabase
       .from("tasks")
       .update({ ...patch, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (error) console.error("Échec de la mise à jour :", error.message);
+    if (error) {
+      console.error("Échec de la mise à jour :", error.message);
+      // on annule la mise à jour optimiste : sans ça, l'écran mentirait
+      // sur l'état réel (ex: statut refusé par le trigger de droits)
+      if (previous) setTasks((prev) => prev.map((t) => (t.id === id ? previous : t)));
+      alert(
+        error.message.includes("Seuls le créateur")
+          ? error.message
+          : `Échec de la mise à jour : ${error.message}`
+      );
+      return false;
+    }
     return true;
   }
 
@@ -177,6 +201,7 @@ export default function TaskBoard({
         title,
         priority: "moyenne",
         status,
+        created_by: currentEmployeeId,
         order_index: tasks.filter((t) => t.status === status && t.project_id === targetProjectId)
           .length,
       })
@@ -326,6 +351,7 @@ export default function TaskBoard({
           allTasks={tasks}
           dependencies={dependencies}
           projects={projects}
+          employees={employees}
           currentEmployeeName={currentEmployeeName}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={(patch) => updateTask(selectedTask.id, patch)}

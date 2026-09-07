@@ -12,7 +12,7 @@ import {
   Project,
 } from "@/lib/types";
 import { initials, avatarColor, isOverdue, dueDateLabel, withAlpha } from "@/lib/avatar";
-import { ArrowUp, ArrowDown, Lock, CalendarOff } from "lucide-react";
+import { ArrowUp, ArrowDown, Lock, CalendarOff, EyeOff } from "lucide-react";
 
 type SortKey = "priority" | "due_date" | "status" | "title";
 
@@ -74,6 +74,9 @@ export default function ListView({
       )}
       {sorted.map((task) => {
         const overdue = isOverdue(task.due_date) && task.status !== "fait";
+        const isPrivate =
+          (task.visibility ?? projectById.get(task.project_id)?.default_visibility ?? "public") ===
+          "private";
         const firstResponsable = task.responsible_name_raw?.split(",")[0]?.trim();
         return (
           <div
@@ -100,6 +103,11 @@ export default function ListView({
             >
               {blockedTaskIds.has(task.id) && (
                 <Lock size={11} className="text-critique shrink-0" />
+              )}
+              {isPrivate && (
+                <span title="Tâche privée">
+                  <EyeOff size={11} className="text-ink/35 shrink-0" />
+                </span>
               )}
               <span className="truncate">{task.title}</span>
             </button>

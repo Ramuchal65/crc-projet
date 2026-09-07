@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare } from "lucide-react";
-import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project } from "@/lib/types";
+import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare, Globe, Lock, UserCircle } from "lucide-react";
+import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project, Employee } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 
 export default function TaskDrawer({
@@ -10,6 +10,7 @@ export default function TaskDrawer({
   allTasks,
   dependencies,
   projects,
+  employees,
   currentEmployeeName,
   onClose,
   onUpdate,
@@ -21,6 +22,7 @@ export default function TaskDrawer({
   allTasks: Task[];
   dependencies: TaskDependency[];
   projects: Project[];
+  employees: Employee[];
   currentEmployeeName: string;
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => void;
@@ -179,6 +181,36 @@ export default function TaskDrawer({
           </div>
 
           <div>
+            <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1 flex items-center gap-1.5">
+              Visibilité
+              {(() => {
+                const project = projects.find((p) => p.id === task.project_id);
+                const effective = task.visibility ?? project?.default_visibility ?? "public";
+                return effective === "private" ? (
+                  <Lock size={11} className="text-critique" />
+                ) : (
+                  <Globe size={11} className="text-basse" />
+                );
+              })()}
+            </label>
+            <select
+              value={task.visibility ?? "inherit"}
+              onChange={(e) =>
+                onUpdate({
+                  visibility: e.target.value === "inherit" ? null : (e.target.value as "public" | "private"),
+                })
+              }
+              className="w-full border border-line rounded-md px-2 py-2 bg-white text-sm"
+            >
+              <option value="inherit">
+                Suivre le projet ({projects.find((p) => p.id === task.project_id)?.default_visibility === "private" ? "privé" : "public"})
+              </option>
+              <option value="public">Public — toute l'équipe voit</option>
+              <option value="private">Privé — seul·e le créateur/l'assigné·e voit</option>
+            </select>
+          </div>
+
+          <div>
             <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
               Description
             </label>
@@ -228,8 +260,30 @@ export default function TaskDrawer({
           </div>
 
           <div>
+            <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1 flex items-center gap-1.5">
+              <UserCircle size={12} />
+              Assigné·e (compte réel)
+            </label>
+            <select
+              value={task.assignee_employee_id ?? ""}
+              onChange={(e) => onUpdate({ assignee_employee_id: e.target.value || null })}
+              className="w-full border border-line rounded-md px-2 py-2 bg-white text-sm"
+            >
+              <option value="">Personne</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.full_name}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-ink/35 mt-1">
+              Seuls le créateur, la personne assignée ici, ou un admin peuvent changer le statut.
+            </p>
+          </div>
+
+          <div>
             <label className="text-xs uppercase tracking-wide text-ink/50 block mb-1">
-              Responsable(s)
+              Responsable(s) — texte libre (issu du CR)
             </label>
             <input
               value={responsible}

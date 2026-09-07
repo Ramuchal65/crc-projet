@@ -1,12 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import TaskBoard from "@/components/TaskBoard";
 import { getCurrentEmployee, getMyTeams } from "@/lib/supabase/getCurrentEmployee";
-import { Task, TaskDependency, Project } from "@/lib/types";
+import { Task, TaskDependency, Project, Employee } from "@/lib/types";
 
 export default async function TasksPage() {
   const supabase = createClient();
   const currentEmployee = await getCurrentEmployee();
   const myTeams = await getMyTeams(currentEmployee?.id ?? null);
+
+  const { data: employees } = await supabase
+    .from("employees")
+    .select("*")
+    .order("full_name", { ascending: true });
 
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
@@ -41,6 +46,8 @@ export default async function TasksPage() {
       initialDependencies={(dependencies as TaskDependency[]) ?? []}
       initialProjects={(projects as Project[]) ?? []}
       currentEmployeeName={currentEmployee?.full_name ?? "Anonyme"}
+      currentEmployeeId={currentEmployee?.id ?? null}
+      employees={(employees as Employee[]) ?? []}
       myTeams={myTeams}
     />
   );
