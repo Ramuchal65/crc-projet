@@ -187,6 +187,15 @@ export default function TaskBoard({
   }
 
   async function createTask(title: string, status: Status = "a_faire") {
+    // DIAGNOSTIC TEMPORAIRE — à retirer une fois le bug résolu
+    const { data: sessionCheck, error: sessionErr } = await supabase.auth.getUser();
+    console.log("[diagnostic] utilisateur au moment de la création :", {
+      userId: sessionCheck?.user?.id,
+      email: sessionCheck?.user?.email,
+      sessionErr,
+      currentEmployeeId,
+    });
+
     // en vue "Tous les projets", on assigne au premier projet — un projet
     // précis doit être sélectionné pour une assignation intentionnelle
     const targetProjectId = selectedProjectId !== "all" ? selectedProjectId : projects[0]?.id;
