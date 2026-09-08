@@ -24,7 +24,7 @@ export interface TaskAttachment {
 export interface Notification {
   id: string;
   employee_id: string;
-  type: "assigned" | "comment";
+  type: "assigned" | "comment" | "due_soon";
   task_id: string | null;
   message: string;
   read: boolean;
