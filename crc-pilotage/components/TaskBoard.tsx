@@ -381,6 +381,7 @@ export default function TaskBoard({
           projects={projects}
           employees={employees}
           currentEmployeeName={currentEmployeeName}
+          currentEmployeeId={currentEmployeeId}
           onClose={() => setSelectedTaskId(null)}
           onUpdate={(patch) => updateTask(selectedTask.id, patch)}
           onDelete={() => deleteTask(selectedTask.id)}

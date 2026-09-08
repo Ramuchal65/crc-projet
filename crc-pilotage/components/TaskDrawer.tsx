@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Trash2, Link2, ChevronRight, ListChecks, Plus, MessageSquare, Globe, Lock, UserCircle, History } from "lucide-react";
 import { Task, Priority, Status, STATUS_ORDER, STATUS_LABEL, PRIORITY_ORDER, PRIORITY_LABEL, TaskDependency, TaskComment, Project, Employee, ActivityLogEntry } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
+import AttachmentsSection from "./AttachmentsSection";
 
 export default function TaskDrawer({
   task,
@@ -12,6 +13,7 @@ export default function TaskDrawer({
   projects,
   employees,
   currentEmployeeName,
+  currentEmployeeId,
   onClose,
   onUpdate,
   onDelete,
@@ -24,6 +26,7 @@ export default function TaskDrawer({
   projects: Project[];
   employees: Employee[];
   currentEmployeeName: string;
+  currentEmployeeId: string | null;
   onClose: () => void;
   onUpdate: (patch: Partial<Task>) => void;
   onDelete: () => void;
@@ -479,6 +482,10 @@ export default function TaskDrawer({
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="pt-4 border-t border-line">
+            <AttachmentsSection taskId={task.id} currentEmployeeId={currentEmployeeId} />
           </div>
 
           <div className="pt-4 border-t border-line space-y-3">
