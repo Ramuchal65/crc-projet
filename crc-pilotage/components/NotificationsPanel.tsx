@@ -1,7 +1,7 @@
 "use client";
 
 import { Notification } from "@/lib/types";
-import { MessageSquare, UserPlus, X } from "lucide-react";
+import { MessageSquare, UserPlus, X, Clock } from "lucide-react";
 
 export default function NotificationsPanel({
   notifications,
@@ -45,6 +45,8 @@ export default function NotificationsPanel({
             >
               {n.type === "assigned" ? (
                 <UserPlus size={14} className="text-accent shrink-0 mt-0.5" />
+              ) : n.type === "due_soon" ? (
+                <Clock size={14} className="text-moyenne shrink-0 mt-0.5" />
               ) : (
                 <MessageSquare size={14} className="text-accent shrink-0 mt-0.5" />
               )}
