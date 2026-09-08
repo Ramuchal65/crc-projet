@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/client";
 
 const DAY_WIDTH = 28;
 const ROW_HEIGHT = 40;
-const LABEL_WIDTH = 240;
 
 function parseISO(s: string): Date {
   return new Date(s + "T00:00:00Z");
@@ -271,7 +270,7 @@ export default function GanttView({
       <div className="border border-line rounded-lg bg-white overflow-hidden">
         <div className="flex overflow-x-auto">
           {/* Colonne des libellés, collée à gauche */}
-          <div className="shrink-0 sticky left-0 z-20 bg-white border-r border-line" style={{ width: LABEL_WIDTH }}>
+          <div className="shrink-0 sticky left-0 z-20 bg-white border-r border-line w-24 sm:w-60">
             <div className="h-[52px] border-b border-line" />
             {bars.map(({ task, rowIndex }) => (
               <div
