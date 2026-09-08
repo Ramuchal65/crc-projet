@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound, LayoutDashboard, Bell, History } from "lucide-react";
+import { LayoutGrid, Upload, GanttChartSquare, Users, LogOut, KeyRound, LayoutDashboard, Bell, History, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ChangePasswordModal from "./ChangePasswordModal";
 
@@ -18,9 +18,13 @@ const NAV_ITEMS = [
 export default function Sidebar({
   unreadNotifications,
   onToggleNotifications,
+  mobileOpen,
+  onCloseMobile,
 }: {
   unreadNotifications: number;
   onToggleNotifications: () => void;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -48,18 +52,26 @@ export default function Sidebar({
   }
 
   return (
-    <aside className="w-60 shrink-0 bg-sidebar text-paper h-screen sticky top-0 flex flex-col">
-      <div className="px-5 py-5 flex items-baseline gap-2">
+    <aside
+      className={`w-60 shrink-0 bg-sidebar text-paper h-screen flex flex-col fixed md:sticky top-0 left-0 z-40 transition-transform duration-200 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      }`}
+    >
+      <div className="px-5 py-5 flex items-center justify-between">
         <span className="font-medium">Pilotage</span>
+        <button onClick={onCloseMobile} className="md:hidden text-paper/50 hover:text-paper">
+          <X size={18} />
+        </button>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5">
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <a
               key={href}
               href={href}
+              onClick={onCloseMobile}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
                 active
                   ? "bg-accent text-white"
@@ -85,7 +97,7 @@ export default function Sidebar({
         </button>
       </nav>
 
-      <div className="px-5 py-4 border-t border-paper/10 space-y-2">
+      <div className="px-5 py-4 border-t border-paper/10 space-y-2 shrink-0">
         {name && <p className="text-xs text-paper/60 truncate">{name}</p>}
         <button
           onClick={() => setChangingPassword(true)}

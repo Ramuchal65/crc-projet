@@ -17,7 +17,7 @@ export default function NotificationsPanel({
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <aside className="w-80 shrink-0 h-screen sticky top-0 bg-white border-r border-line flex flex-col">
+    <aside className="w-full sm:w-80 shrink-0 h-screen sticky top-0 bg-white border-r border-line flex flex-col pt-14 md:pt-0 z-20">
       <div className="flex items-center justify-between px-4 py-4 border-b border-line shrink-0">
         <span className="text-sm font-medium">Notifications</span>
         <div className="flex items-center gap-3">

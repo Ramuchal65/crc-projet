@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Notification } from "@/lib/types";
+import { Menu } from "lucide-react";
 import Sidebar from "./Sidebar";
 import NotificationsPanel from "./NotificationsPanel";
 
@@ -12,6 +13,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -61,9 +63,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      {/* Barre mobile uniquement — masquée à partir de md (768px) */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-sidebar text-paper flex items-center px-4 z-30">
+        <button onClick={() => setMobileSidebarOpen(true)} className="p-1 -ml-1">
+          <Menu size={22} />
+        </button>
+        <span className="ml-3 font-medium">Pilotage</span>
+        {unreadCount > 0 && (
+          <span className="ml-auto bg-critique text-white text-[10px] font-medium rounded-full w-4 h-4 flex items-center justify-center">
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </div>
+
+      {/* Fond assombri derrière le menu mobile ouvert */}
+      {mobileSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-ink/40 z-30"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       <Sidebar
         unreadNotifications={unreadCount}
-        onToggleNotifications={() => setPanelOpen((v) => !v)}
+        onToggleNotifications={() => {
+          setPanelOpen((v) => !v);
+          setMobileSidebarOpen(false);
+        }}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
       {panelOpen && (
         <NotificationsPanel
@@ -73,7 +101,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           onMarkAllRead={markAllRead}
         />
       )}
-      <main className="flex-1 px-8 py-8 max-w-[1600px] min-w-0">{children}</main>
+      <main className="flex-1 px-4 py-4 md:px-8 md:py-8 pt-[4.5rem] md:pt-8 max-w-[1600px] min-w-0">
+        {children}
+      </main>
     </div>
   );
 }
