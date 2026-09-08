@@ -11,6 +11,16 @@ export interface ActivityLogEntry {
   created_at: string;
 }
 
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  uploaded_by: string | null;
+  file_name: string;
+  file_size: number | null;
+  storage_path: string;
+  created_at: string;
+}
+
 export interface Notification {
   id: string;
   employee_id: string;
