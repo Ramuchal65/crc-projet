@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Task, TaskDependency, Project, Team, PRIORITY_LABEL } from "@/lib/types";
 import { projectColor, withAlpha } from "@/lib/avatar";
@@ -45,6 +46,7 @@ export default function GanttView({
   myTeams: Team[];
 }) {
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [openTitleTask, setOpenTitleTask] = useState<Task | null>(null);
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const supabase = createClient();
@@ -277,6 +279,7 @@ export default function GanttView({
                 key={task.id}
                 onMouseEnter={() => setHoverId(task.id)}
                 onMouseLeave={() => setHoverId(null)}
+                onClick={() => setOpenTitleTask(task)}
                 style={{
                   height: ROW_HEIGHT,
                   backgroundColor:
@@ -286,7 +289,7 @@ export default function GanttView({
                       ? withAlpha(projectById.get(task.project_id)?.color ?? "#3E6FA8", "1A")
                       : undefined,
                 }}
-                className={`flex items-center gap-1.5 px-3 text-xs truncate border-b border-line/60 transition-colors ${
+                className={`flex items-center gap-1.5 px-3 text-xs truncate border-b border-line/60 transition-colors cursor-pointer ${
                   hoverId === task.id ? "bg-accentSoft" : ""
                 }`}
                 title={task.title}
@@ -447,6 +450,45 @@ export default function GanttView({
           </div>
         </div>
       </div>
+
+      {openTitleTask && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/30 p-4"
+          onClick={() => setOpenTitleTask(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium leading-snug">{openTitleTask.title}</p>
+              <button
+                onClick={() => setOpenTitleTask(null)}
+                className="text-ink/40 hover:text-ink shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-ink/50">
+              <span className={`font-medium text-${openTitleTask.priority}`}>
+                {PRIORITY_LABEL[openTitleTask.priority]}
+              </span>
+              {openTitleTask.due_date_raw && <span>Échéance : {openTitleTask.due_date_raw}</span>}
+              {showProjectBadge && (
+                <span className="flex items-center gap-1">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: projectById.get(openTitleTask.project_id)?.color ?? "#3E6FA8",
+                    }}
+                  />
+                  {projectById.get(openTitleTask.project_id)?.name}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
