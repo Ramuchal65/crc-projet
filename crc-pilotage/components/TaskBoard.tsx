@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status, TaskDependency, Project, Team, Employee } from "@/lib/types";
+import { Task, Priority, Status, TaskDependency, Project, Team, Employee, STATUS_ORDER, STATUS_LABEL } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
@@ -36,6 +36,8 @@ export default function TaskBoard({
   const [search, setSearch] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "toutes">("toutes");
   const [responsableFilter, setResponsableFilter] = useState<string | "tous">("tous");
+  const [statusFilter, setStatusFilter] = useState<Status | "tous">("tous");
+  const [dueFilter, setDueFilter] = useState<"toutes" | "retard" | "semaine" | "aucune">("toutes");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [linkRequest, setLinkRequest] = useState<{ a: Task; b: Task } | null>(null);
 
@@ -139,9 +141,12 @@ export default function TaskBoard({
   }, [tasks]);
 
   const filteredTasks = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const inAWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     return tasks.filter((t) => {
       if (selectedProjectId !== "all" && t.project_id !== selectedProjectId) return false;
       if (priorityFilter !== "toutes" && t.priority !== priorityFilter) return false;
+      if (statusFilter !== "tous" && t.status !== statusFilter) return false;
       if (
         responsableFilter !== "tous" &&
         !(t.responsible_name_raw ?? "").includes(responsableFilter)
@@ -149,9 +154,14 @@ export default function TaskBoard({
         return false;
       if (search.trim() && !t.title.toLowerCase().includes(search.trim().toLowerCase()))
         return false;
+      if (dueFilter === "retard" && !(t.due_date && t.due_date < today && t.status !== "fait"))
+        return false;
+      if (dueFilter === "semaine" && !(t.due_date && t.due_date >= today && t.due_date <= inAWeek))
+        return false;
+      if (dueFilter === "aucune" && (t.due_date || t.due_date_raw)) return false;
       return true;
     });
-  }, [tasks, selectedProjectId, priorityFilter, responsableFilter, search]);
+  }, [tasks, selectedProjectId, priorityFilter, statusFilter, responsableFilter, search, dueFilter]);
 
   async function updateTask(id: string, patch: Partial<Task>): Promise<boolean> {
     if (patch.status === "fait" && blockedTaskIds.has(id)) {
@@ -309,6 +319,28 @@ export default function TaskBoard({
               <option value="haute">Haute</option>
               <option value="moyenne">Moyenne</option>
               <option value="basse">Basse</option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as Status | "tous")}
+              className="border border-line rounded-lg px-2 py-1.5 bg-white"
+            >
+              <option value="tous">Tout statut</option>
+              {STATUS_ORDER.map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+            <select
+              value={dueFilter}
+              onChange={(e) => setDueFilter(e.target.value as typeof dueFilter)}
+              className="border border-line rounded-lg px-2 py-1.5 bg-white"
+            >
+              <option value="toutes">Toute échéance</option>
+              <option value="retard">En retard</option>
+              <option value="semaine">Cette semaine</option>
+              <option value="aucune">Sans échéance</option>
             </select>
             <select
               value={responsableFilter}
