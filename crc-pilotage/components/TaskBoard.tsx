@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Task, Priority, Status, TaskDependency, Project, Team, Employee, STATUS_ORDER, STATUS_LABEL } from "@/lib/types";
+import { Task, Status, TaskDependency, Project, Team, Employee, STATUS_ORDER, STATUS_LABEL } from "@/lib/types";
 import { Search } from "lucide-react";
 import KanbanView from "./KanbanView";
 import ListView from "./ListView";
@@ -10,6 +10,7 @@ import TaskDrawer from "./TaskDrawer";
 import QuickAdd from "./QuickAdd";
 import LinkDependencyModal from "./LinkDependencyModal";
 import ProjectSelector from "./ProjectSelector";
+import MultiSelectFilter from "./MultiSelectFilter";
 
 export default function TaskBoard({
   initialTasks,
@@ -34,10 +35,10 @@ export default function TaskBoard({
   const [selectedProjectId, setSelectedProjectId] = useState<string | "all">("all");
   const [view, setView] = useState<"kanban" | "liste">("kanban");
   const [search, setSearch] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState<Priority | "toutes">("toutes");
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
   const [responsableFilter, setResponsableFilter] = useState<string | "tous">("tous");
-  const [statusFilter, setStatusFilter] = useState<Status | "tous">("tous");
-  const [dueFilter, setDueFilter] = useState<"toutes" | "retard" | "semaine" | "aucune">("toutes");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [dueFilter, setDueFilter] = useState<string[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [linkRequest, setLinkRequest] = useState<{ a: Task; b: Task } | null>(null);
 
@@ -145,8 +146,8 @@ export default function TaskBoard({
     const inAWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
     return tasks.filter((t) => {
       if (selectedProjectId !== "all" && t.project_id !== selectedProjectId) return false;
-      if (priorityFilter !== "toutes" && t.priority !== priorityFilter) return false;
-      if (statusFilter !== "tous" && t.status !== statusFilter) return false;
+      if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
+      if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
       if (
         responsableFilter !== "tous" &&
         !(t.responsible_name_raw ?? "").includes(responsableFilter)
@@ -154,11 +155,15 @@ export default function TaskBoard({
         return false;
       if (search.trim() && !t.title.toLowerCase().includes(search.trim().toLowerCase()))
         return false;
-      if (dueFilter === "retard" && !(t.due_date && t.due_date < today && t.status !== "fait"))
-        return false;
-      if (dueFilter === "semaine" && !(t.due_date && t.due_date >= today && t.due_date <= inAWeek))
-        return false;
-      if (dueFilter === "aucune" && (t.due_date || t.due_date_raw)) return false;
+      if (dueFilter.length > 0) {
+        const matches = dueFilter.some((f) => {
+          if (f === "retard") return !!t.due_date && t.due_date < today && t.status !== "fait";
+          if (f === "semaine") return !!t.due_date && t.due_date >= today && t.due_date <= inAWeek;
+          if (f === "aucune") return !t.due_date && !t.due_date_raw;
+          return false;
+        });
+        if (!matches) return false;
+      }
       return true;
     });
   }, [tasks, selectedProjectId, priorityFilter, statusFilter, responsableFilter, search, dueFilter]);
@@ -310,38 +315,32 @@ export default function TaskBoard({
                 className="border border-line rounded-lg pl-8 pr-3 py-1.5 bg-white w-44"
               />
             </div>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as Priority | "toutes")}
-              className="border border-line rounded-lg px-2 py-1.5 bg-white"
-            >
-              <option value="toutes">Toute priorité</option>
-              <option value="haute">Haute</option>
-              <option value="moyenne">Moyenne</option>
-              <option value="basse">Basse</option>
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as Status | "tous")}
-              className="border border-line rounded-lg px-2 py-1.5 bg-white"
-            >
-              <option value="tous">Tout statut</option>
-              {STATUS_ORDER.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-            <select
-              value={dueFilter}
-              onChange={(e) => setDueFilter(e.target.value as typeof dueFilter)}
-              className="border border-line rounded-lg px-2 py-1.5 bg-white"
-            >
-              <option value="toutes">Toute échéance</option>
-              <option value="retard">En retard</option>
-              <option value="semaine">Cette semaine</option>
-              <option value="aucune">Sans échéance</option>
-            </select>
+            <MultiSelectFilter
+              label="Priorité"
+              options={[
+                { value: "haute", label: "Haute" },
+                { value: "moyenne", label: "Moyenne" },
+                { value: "basse", label: "Basse" },
+              ]}
+              selected={priorityFilter}
+              onChange={setPriorityFilter}
+            />
+            <MultiSelectFilter
+              label="Statut"
+              options={STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+              selected={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <MultiSelectFilter
+              label="Échéance"
+              options={[
+                { value: "retard", label: "En retard" },
+                { value: "semaine", label: "Cette semaine" },
+                { value: "aucune", label: "Sans échéance" },
+              ]}
+              selected={dueFilter}
+              onChange={setDueFilter}
+            />
             <select
               value={responsableFilter}
               onChange={(e) => setResponsableFilter(e.target.value)}
