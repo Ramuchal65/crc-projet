@@ -425,7 +425,7 @@ export default function GanttView({
               {bars.map(({ task, rowIndex, x1, x2, isMilestone }) => {
                 const dimmed = hoverId !== null && hoverId !== task.id;
                 const done = task.status === "fait";
-                const blocked = blockedTaskIds.has(task.id);
+                const blocked = task.status === "bloque" || blockedTaskIds.has(task.id);
                 const fillClass = done ? "bg-basse" : PRIORITY_BAR[task.priority];
                 const titleSuffix = `${done ? " · Terminée" : blocked ? " · Bloquée" : ""}`;
 
