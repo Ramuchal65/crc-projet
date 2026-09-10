@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { X, Lock, CheckCircle2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Task, TaskDependency, Project, Team, PRIORITY_LABEL } from "@/lib/types";
 import { projectColor, withAlpha } from "@/lib/avatar";
@@ -106,6 +106,16 @@ export default function GanttView({
   );
 
   const dated = useMemo(() => scopedTasks.filter((t) => !!t.due_date), [scopedTasks]);
+
+  const blockedTaskIds = useMemo(() => {
+    const taskById = new Map(tasks.map((t) => [t.id, t]));
+    const set = new Set<string>();
+    dependencies.forEach((d) => {
+      const dep = taskById.get(d.depends_on_task_id);
+      if (dep && dep.status !== "fait") set.add(d.task_id);
+    });
+    return set;
+  }, [tasks, dependencies]);
   const undated = scopedTasks.length - dated.length;
 
   const { rangeStart, rangeEnd, totalDays } = useMemo(() => {
@@ -256,6 +266,12 @@ export default function GanttView({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 border-t border-dashed border-ink/30" /> Dépendance
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Lock size={11} className="text-critique" /> Bloquée
+        </span>
+        <span className="flex items-center gap-1.5">
+          <CheckCircle2 size={11} className="text-basse" /> Terminée
         </span>
         {showProjectBadge &&
           projects.map((p) => (
@@ -408,6 +424,11 @@ export default function GanttView({
               {/* barres de tâches */}
               {bars.map(({ task, rowIndex, x1, x2, isMilestone }) => {
                 const dimmed = hoverId !== null && hoverId !== task.id;
+                const done = task.status === "fait";
+                const blocked = blockedTaskIds.has(task.id);
+                const fillClass = done ? "bg-basse" : PRIORITY_BAR[task.priority];
+                const titleSuffix = `${done ? " · Terminée" : blocked ? " · Bloquée" : ""}`;
+
                 if (isMilestone) {
                   const cx = x2 - DAY_WIDTH / 2;
                   const cy = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
@@ -416,13 +437,13 @@ export default function GanttView({
                       key={task.id}
                       onMouseEnter={() => setHoverId(task.id)}
                       onMouseLeave={() => setHoverId(null)}
-                      className={`absolute w-3 h-3 rotate-45 ${PRIORITY_BAR[task.priority]} transition-opacity ${
-                        dimmed ? "opacity-30" : ""
-                      }`}
+                      className={`absolute w-3 h-3 rotate-45 ${fillClass} transition-opacity ${
+                        blocked ? "ring-2 ring-critique ring-offset-1" : ""
+                      } ${dimmed ? "opacity-30" : ""}`}
                       style={{ left: cx - 6, top: cy - 6 }}
                       title={`${task.title} · ${PRIORITY_LABEL[task.priority]}${
                         showProjectBadge ? ` · ${projectById.get(task.project_id)?.name ?? ""}` : ""
-                      }`}
+                      }${titleSuffix}`}
                     />
                   );
                 }
@@ -431,9 +452,9 @@ export default function GanttView({
                     key={task.id}
                     onMouseEnter={() => setHoverId(task.id)}
                     onMouseLeave={() => setHoverId(null)}
-                    className={`absolute rounded-md ${PRIORITY_BAR[task.priority]} transition-opacity ${
-                      task.status === "fait" ? "opacity-40" : ""
-                    } ${dimmed ? "opacity-30" : ""}`}
+                    className={`absolute rounded-md flex items-center justify-center ${fillClass} transition-opacity ${
+                      done ? "opacity-70" : ""
+                    } ${blocked ? "ring-2 ring-critique" : ""} ${dimmed ? "opacity-30" : ""}`}
                     style={{
                       left: x1,
                       top: rowIndex * ROW_HEIGHT + 8,
@@ -442,8 +463,11 @@ export default function GanttView({
                     }}
                     title={`${task.title} · ${PRIORITY_LABEL[task.priority]}${
                       showProjectBadge ? ` · ${projectById.get(task.project_id)?.name ?? ""}` : ""
-                    }`}
-                  />
+                    }${titleSuffix}`}
+                  >
+                    {done && <CheckCircle2 size={12} className="text-white/90 shrink-0" />}
+                    {!done && blocked && <Lock size={11} className="text-white shrink-0" />}
+                  </div>
                 );
               })}
             </div>
