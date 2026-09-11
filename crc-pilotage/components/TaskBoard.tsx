@@ -143,7 +143,17 @@ export default function TaskBoard({
 
   const filteredTasks = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const inAWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    // Semaine de travail en cours (lundi à vendredi), pas une fenêtre
+    // glissante de 7 jours à partir d'aujourd'hui
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = dimanche, 1 = lundi, ... 6 = samedi
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday);
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    const weekStart = monday.toISOString().slice(0, 10);
+    const weekEnd = friday.toISOString().slice(0, 10);
     return tasks.filter((t) => {
       if (selectedProjectId !== "all" && t.project_id !== selectedProjectId) return false;
       if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
@@ -158,7 +168,7 @@ export default function TaskBoard({
       if (dueFilter.length > 0) {
         const matches = dueFilter.some((f) => {
           if (f === "retard") return !!t.due_date && t.due_date < today && t.status !== "fait";
-          if (f === "semaine") return !!t.due_date && t.due_date >= today && t.due_date <= inAWeek;
+          if (f === "semaine") return !!t.due_date && t.due_date >= weekStart && t.due_date <= weekEnd;
           if (f === "aucune") return !t.due_date && !t.due_date_raw;
           return false;
         });
